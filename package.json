@@ -1,0 +1,22 @@
+{
+  "name": "odinai",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OdinAi by ODIN CUSTOMS AS: AI-prepared customs declarations with built-in business partner and product registers",
+  "workspaces": ["server", "client"],
+  "engines": { "node": ">=22.12" },
+  "scripts": {
+    "db": "docker compose up -d db",
+    "dev": "npm run db && npm run migrate -w server && concurrently -n server,client -c blue,yellow \"npm run dev -w server\" \"npm run dev -w client\"",
+    "build": "npm run build -w client && npm run build -w server",
+    "start": "npm run start -w server",
+    "migrate": "npm run migrate -w server",
+    "test": "npm test -w server",
+    "typecheck": "npm run typecheck -w server && npm run typecheck -w client"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "license": "UNLICENSED",
+  "author": "ODIN CUSTOMS AS"
+}

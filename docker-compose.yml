@@ -1,0 +1,42 @@
+# OdinAi on this PC.
+#   docker compose up -d db     database only (development: run the app with `npm run dev`)
+#   docker compose up -d        database + the built app on http://localhost:3200
+# The same images run in Azure later; only the settings differ.
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: odinai
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: odinai
+    ports:
+      - "5433:5432"
+    volumes:
+      - odinai-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U odinai -d odinai"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  app:
+    build: .
+    restart: unless-stopped
+    profiles: ["app"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3200
+      DATABASE_URL: postgres://odinai:${DB_PASSWORD}@db:5432/odinai
+      FILE_STORE: /data/files
+    ports:
+      - "3200:3200"
+    volumes:
+      - odinai-files:/data/files
+
+volumes:
+  odinai-db:
+  odinai-files:
