@@ -4,6 +4,9 @@ import { config } from './config.js';
 // numeric and bigint arrive as strings unless told otherwise; amounts stay exact as strings,
 // counts (bigint from COUNT(*)) become numbers.
 pg.types.setTypeParser(20, v => Number(v));
+// A date column stays the text "YYYY-MM-DD": as a JavaScript Date it is local midnight, and
+// toISOString() then gives the day before in Norway (UTC+1/+2).
+pg.types.setTypeParser(1082, v => v);
 
 export const pool = new pg.Pool({ connectionString: config.databaseUrl, max: 10 });
 

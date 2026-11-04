@@ -12,7 +12,7 @@ Requirements and design: the OdinAi requirements document (Claude Docs). Built o
 | Phase | Content | State |
 |---|---|---|
 | 0 | Docker, database, login, roles, audit log, NO/EN, logo, daily reference data | Done |
-| 1 | Business partners, products, RT permits, data from ODIN LINK | Next |
+| 1 | Business partners, products, RT permits, data from ODIN LINK | Partners done; products and RT permits next, then the data move |
 | 2 | AI import declarations, review, approval, TVINN simulator | |
 | 3 | Export and Digitoll | |
 | 4 | Invoicing (prices per client, KID, bank API, Fiken) | |

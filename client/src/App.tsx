@@ -10,11 +10,13 @@ import { Users } from './pages/admin/Users';
 import { Audit } from './pages/admin/Audit';
 import { Settings } from './pages/admin/Settings';
 import { RefData } from './pages/admin/RefData';
+import { PartnerList } from './pages/partners/PartnerList';
+import { PartnerCard } from './pages/partners/PartnerCard';
 
 /** The modules in the dark-blue band; each lists its functions for the light-blue band. */
 const MODULES = [
   { path: '/ai', label: 'AI-deklarasjoner', icon: 'doc', phase: 2, sub: [] as [string, string][] },
-  { path: '/partners', label: 'Forretningspartnere', icon: 'org', phase: 1, sub: [] },
+  { path: '/partners', label: 'Forretningspartnere', icon: 'org', sub: [] },
   { path: '/products', label: 'Produkter', icon: 'box', phase: 1, sub: [] },
   { path: '/invoicing', label: 'Fakturering', icon: 'bill', phase: 4, sub: [] },
   { path: '/admin', label: 'Administrasjon', icon: 'lock', perm: 'users.manage', sub: [['/admin/users', 'Brukere'], ['/admin/refdata', 'Referansedata'], ['/admin/audit', 'Endringslogg'], ['/admin/settings', 'Innstillinger']] as [string, string][] }
@@ -85,6 +87,8 @@ function Shell({ me, onLang, onSignOut }: { me: Me; onLang: (l: Lang) => void; o
           <Routes>
             <Route path="/" element={<Navigate to="/ai" replace />} />
             {MODULES.filter(m => m.phase).map(m => <Route key={m.path} path={m.path + '/*'} element={<Upcoming title={m.label} phase={m.phase!} />} />)}
+            <Route path="/partners" element={<PartnerList me={me} />} />
+            <Route path="/partners/:id" element={<PartnerCard me={me} />} />
             <Route path="/admin" element={<Navigate to={me.perms.includes('users.manage') ? '/admin/users' : '/admin/audit'} replace />} />
             <Route path="/admin/users" element={<Users me={me} />} />
             <Route path="/admin/audit" element={<Audit />} />
