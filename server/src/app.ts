@@ -9,6 +9,7 @@ import { pool } from './db.js';
 import { guard } from './auth/guard.js';
 import { authRoutes } from './auth/routes.js';
 import { adminRoutes } from './admin/routes.js';
+import { refdataRoutes } from './refdata/routes.js';
 import { errorHandler } from './errors.js';
 
 export function createApp() {
@@ -35,6 +36,7 @@ export function createApp() {
   api.use(guard);
   api.use(authRoutes);
   api.use(adminRoutes);
+  api.use(refdataRoutes);
   api.use((_req, res) => res.status(404).json({ error: 'Ukjent adresse', code: 'NOT_FOUND' }));
   app.use('/api', api);
 

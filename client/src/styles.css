@@ -90,6 +90,11 @@ ul.req li { margin: 5px 0; }
 .filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
 .filters select, .filters input { border: 1px solid var(--line); border-radius: 3px; padding: 6px 9px; background: #fff; }
 
+.lead { max-width: 820px; margin: 0 0 12px; }
+.mono { font-family: var(--mono); }
+table.t tr.click { cursor: pointer; }
+table.t tr.click:hover td { background: var(--brand-light); }
+
 /* tables, chips, pills */
 .tblwrap { overflow-x: auto; background: #fff; border: 1px solid var(--line); border-radius: 4px; margin-bottom: 10px; }
 table.t { width: 100%; border-collapse: collapse; font-size: 12.5px; }

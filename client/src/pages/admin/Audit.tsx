@@ -7,7 +7,7 @@ interface Row { id: number; at: string; user_name: string | null; action: string
 const ACTIONS: Record<string, string> = {
   USER_SETUP: 'Første administrator opprettet', LOGIN: 'Pålogging', LOGIN_FAILED: 'Mislykket pålogging', USER_LOCKED: 'Konto låst',
   USER_CREATED: 'Bruker opprettet', USER_CHANGED: 'Bruker endret', PASSWORD_CHANGED: 'Passord byttet', PASSWORD_RESET: 'Passord tilbakestilt',
-  SETTING_CHANGED: 'Innstilling endret'
+  SETTING_CHANGED: 'Innstilling endret', REFDATA_REFRESH: 'Oppdatering av referansedata startet'
 };
 const show = (v: unknown) => (v === null || v === undefined || v === '' ? '—' : Array.isArray(v) ? v.join(', ') : typeof v === 'object' ? JSON.stringify(v) : String(v));
 

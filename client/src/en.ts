@@ -36,5 +36,19 @@ export const EN: Record<string, string> = {
   'Lagret.': 'Saved.', 'Godkjenning': 'Approval',
   'Fire øyne: en annen bruker enn den som sendte til godkjenning må godkjenne': 'Four eyes: a user other than the one who submitted must approve',
   'Slå av bare på dager med én person på kontoret. Endringen logges.': 'Switch off only on days with one person in the office. The change is logged.',
-  'Standardspråk for nye brukere og innloggingssiden': 'Default language for new users and the sign-in page'
+  'Standardspråk for nye brukere og innloggingssiden': 'Default language for new users and the sign-in page',
+  'Referansedata': 'Reference data', 'Oppdater alt nå': 'Refresh all now', 'Oppdater': 'Refresh', 'Datasett': 'Dataset', 'Kilde': 'Source', 'Rader': 'Rows',
+  'Sist oppdatert': 'Last updated', 'Siste kjøring': 'Last run', 'Aldri lastet': 'Never loaded', 'Eldre enn ett døgn': 'Older than a day',
+  'Oppdateres': 'Refreshing', 'Feilet': 'Failed', 'Avvist': 'Refused',
+  'Lastes automatisk hver dag kl. 05.30 fra Tolletatens åpne data (data.toll.no) og Postens postnummerregister. En oppdatering som feiler eller gir langt færre rader enn i dag, endrer ingenting.':
+    "Loaded automatically every day at 05:30 from Norwegian Customs' open data (data.toll.no) and Posten's postal code register. A refresh that fails, or gives far fewer rows than today, changes nothing.",
+  'Tolltariff (varenumre og tekster)': 'Customs tariff (codes and texts)', 'Tollsatser (TL1)': 'Duty rates (TL1)', 'Råvaretollavgift (RT100)': 'Raw material duty (RT100)',
+  'Landgrupper og land': 'Country groups and countries', 'Innførselsrestriksjoner': 'Import restrictions', 'TVINN-feilmeldinger': 'TVINN error messages',
+  'Valutakurser (tollkurs)': 'Exchange rates (customs rates)', 'Postnumre (Posten)': 'Postal codes (Posten)',
+  'Slå opp i tolltariffen': 'Look up the customs tariff', 'Varenummer (f.eks. 2103 90) eller ord (f.eks. sjokolade)': 'Commodity code (e.g. 2103 90) or words (e.g. sjokolade)',
+  'Søk i tolltariffen': 'Search the customs tariff', 'Dato': 'Date', 'Søk': 'Search', 'Tilbake til treffene': 'Back to the results', 'Annen enhet': 'Supplementary unit',
+  'Tariffteksten er et hjelpemiddel for klassifisering og skal ikke brukes som varebeskrivelse i rubrikk 31.': 'The tariff text is a classification aid and must not be used as the goods description in box 31.',
+  'Satser': 'Rates', 'Avgift': 'Duty', 'Landgruppe': 'Country group', 'Sats': 'Rate', 'Ingen satser på datoen.': 'No rates on this date.', 'Restriksjoner': 'Restrictions',
+  'Type': 'Type', 'Ingen restriksjoner.': 'No restrictions.', 'Chapter': 'Chapter', 'Heading': 'Heading', 'Subheading': 'Subheading',
+  'Oppdatering av referansedata startet': 'Reference data refresh started'
 };

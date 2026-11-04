@@ -9,6 +9,7 @@ import { Upcoming } from './pages/Upcoming';
 import { Users } from './pages/admin/Users';
 import { Audit } from './pages/admin/Audit';
 import { Settings } from './pages/admin/Settings';
+import { RefData } from './pages/admin/RefData';
 
 /** The modules in the dark-blue band; each lists its functions for the light-blue band. */
 const MODULES = [
@@ -16,7 +17,7 @@ const MODULES = [
   { path: '/partners', label: 'Forretningspartnere', icon: 'org', phase: 1, sub: [] },
   { path: '/products', label: 'Produkter', icon: 'box', phase: 1, sub: [] },
   { path: '/invoicing', label: 'Fakturering', icon: 'bill', phase: 4, sub: [] },
-  { path: '/admin', label: 'Administrasjon', icon: 'lock', perm: 'users.manage', sub: [['/admin/users', 'Brukere'], ['/admin/audit', 'Endringslogg'], ['/admin/settings', 'Innstillinger']] as [string, string][] }
+  { path: '/admin', label: 'Administrasjon', icon: 'lock', perm: 'users.manage', sub: [['/admin/users', 'Brukere'], ['/admin/refdata', 'Referansedata'], ['/admin/audit', 'Endringslogg'], ['/admin/settings', 'Innstillinger']] as [string, string][] }
 ];
 
 export default function App() {
@@ -88,6 +89,7 @@ function Shell({ me, onLang, onSignOut }: { me: Me; onLang: (l: Lang) => void; o
             <Route path="/admin/users" element={<Users me={me} />} />
             <Route path="/admin/audit" element={<Audit />} />
             <Route path="/admin/settings" element={<Settings me={me} />} />
+            <Route path="/admin/refdata" element={<RefData me={me} />} />
             <Route path="*" element={<Navigate to="/ai" replace />} />
           </Routes>
         )}

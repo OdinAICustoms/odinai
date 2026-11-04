@@ -11,7 +11,7 @@ Requirements and design: the OdinAi requirements document (Claude Docs). Built o
 
 | Phase | Content | State |
 |---|---|---|
-| 0 | Docker, database, login, roles, audit log, NO/EN, logo | Done (reference data from data.toll.no: next) |
+| 0 | Docker, database, login, roles, audit log, NO/EN, logo, daily reference data | Done |
 | 1 | Business partners, products, RT permits, data from ODIN LINK | Next |
 | 2 | AI import declarations, review, approval, TVINN simulator | |
 | 3 | Export and Digitoll | |
@@ -35,6 +35,27 @@ Other commands: `npm test` (server tests on a separate test database), `npm run 
 `npm run build`, `docker compose --profile app up -d --build` (the built app in Docker on port 3200).
 
 Settings are in `.env` (copy `.env.example`); it is never committed.
+
+## Reference data
+
+Loaded every day at 05:30 (and at start-up when missing or older than a day) from Tolletaten's
+open data and Posten; Administrasjon › Referansedata shows the status and refreshes on demand.
+
+| Dataset | Source | Rows (Nov 2026) |
+|---|---|---|
+| Customs tariff | data.toll.no `varenummer` + `tolltariffstruktur` | 7,445 codes + 1,369 chapters/headings |
+| Duty rates TL1 | `tollavgiftssats` | about 298,000 lines |
+| RT100 | `raavaretollavgiftssats` | 1,963 lines, 53 codes |
+| Country groups | `landgruppe` + `medlemsland` | 151 groups, 250 countries |
+| Import restrictions | `innfoerselsrestriksjon` | 9,396 lines |
+| TVINN error codes | `feilmelding` | 354 |
+| Customs exchange rates | `valutakurs` | 45 currencies |
+| Postal codes | bring.no postnummerregister | 5,112 |
+
+A load runs in one transaction: if it fails, or would leave less than half of today's rows, the
+old data stays. `REFRESH_SCHEDULE=off` in `.env` switches the schedule off; `REFRESH_AT=05:30` moves it.
+Office codes, procedure codes, VAT and levies, quotas and the export datasets are added in the phase
+that first uses them.
 
 ## Where things are
 
