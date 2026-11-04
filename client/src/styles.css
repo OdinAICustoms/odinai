@@ -152,3 +152,22 @@ table.t tr.inactive td { color: var(--grey); background: #fafbfb; }
 .loginbox p.muted { margin: 10px 0 6px; }
 .langsw.small button { padding: 2px 7px; }
 @media (max-width: 760px) { .lsep, .lsub { display: none; } }
+
+/* RT permits and documents */
+.rtperm { background: #fff; border: 1px solid var(--line); border-left: 4px solid var(--brand); border-radius: 4px; padding: 10px 13px; margin: 10px 0; }
+.rtperm.old { border-left-color: var(--line); opacity: .8; }
+.rthead { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.rthead .spacer { flex: 1; }
+.variants { display: grid; grid-template-columns: 150px 150px 1fr; gap: 10px 14px; margin-top: 8px; align-items: start; }
+.variant { border: 1px solid var(--line); border-radius: 4px; padding: 7px 10px; display: flex; flex-direction: column; background: #f7f9fa; }
+.variant .v { font-size: 11px; color: var(--grey); text-transform: uppercase; letter-spacing: .4px; }
+.variant b { font-size: 19px; }
+.kv.small { font-size: 12.5px; margin: 0; }
+.rtdocs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 8px; }
+.doclist { list-style: none; margin: 6px 0; padding: 0; }
+.doclist li { padding: 4px 0; border-bottom: 1px dashed var(--line); }
+.doclist li:last-child { border-bottom: 0; }
+.doclist .linkbtn { margin-left: 8px; }
+.upload { display: inline-flex; align-items: center; }
+.upload label.btn { cursor: pointer; display: inline-block; margin: 0; font-weight: 600; }
+@media (max-width: 700px) { .variants { grid-template-columns: 1fr 1fr; } .variants .kv { grid-column: 1 / -1; } }

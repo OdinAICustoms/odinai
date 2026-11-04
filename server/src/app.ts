@@ -11,6 +11,7 @@ import { authRoutes } from './auth/routes.js';
 import { adminRoutes } from './admin/routes.js';
 import { refdataRoutes } from './refdata/routes.js';
 import { partnerRoutes } from './partners/routes.js';
+import { productRoutes } from './products/routes.js';
 import { errorHandler } from './errors.js';
 
 export function createApp() {
@@ -38,6 +39,7 @@ export function createApp() {
   api.use(authRoutes);
   api.use(adminRoutes);
   api.use(refdataRoutes);
+  api.use(productRoutes);   // before partnerRoutes: /partners/:id/products and /rt-permits live here
   api.use(partnerRoutes);
   api.use((_req, res) => res.status(404).json({ error: 'Ukjent adresse', code: 'NOT_FOUND' }));
   app.use('/api', api);

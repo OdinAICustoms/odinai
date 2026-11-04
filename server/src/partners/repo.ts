@@ -323,6 +323,10 @@ export async function merge(req: Request, sourceId: string, targetId: string) {
     // Registers added in later migrations (products, RT permits) point to the target too.
     for (const [key, table, col] of [['products', 'product', 'owner_id'], ['products', 'product', 'supplier_id'], ['rtPermits', 'rt_permit', 'holder_id']] as const)
       if ((await c.query('SELECT to_regclass($1) t', [table])).rows[0].t) await run(c, key, `UPDATE ${table} SET ${col} = $2 WHERE ${col} = $1`, [sourceId, targetId]);
+    // Article numbers that belonged to the source belong to the target (unless the target already has the same one).
+    if ((await c.query("SELECT to_regclass('product_identifier') t")).rows[0].t)
+      await run(c, 'articleNumbers', `UPDATE product_identifier s SET partner_id = $2 WHERE s.partner_id = $1 AND NOT EXISTS
+          (SELECT 1 FROM product_identifier t WHERE t.partner_id = $2 AND t.type = s.type AND t.norm = s.norm)`, [sourceId, targetId]);
     await c.query("UPDATE business_partner SET status = 'INACTIVE', merged_into = $2, version = version + 1, updated_at = now(), updated_by = $3 WHERE id = $1", [sourceId, targetId, who(req)]);
     await touch(c, targetId, req);
     await audit(req, { action: 'PARTNER_MERGED', objectType: 'PARTNER', objectId: sourceId, detail: { into: tgt.partner_no, moved } }, c);

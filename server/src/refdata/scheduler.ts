@@ -12,6 +12,9 @@ export function startScheduler() {
     console.log(`Reference data: refresh (${why})`);
     const out = await runAll();
     console.log('Reference data: ' + out.map(o => `${o.dataset} ${o.status}${o.message ? ` (${o.message.slice(0, 80)})` : ''}`).join(', '));
+    // Products whose valid-to passed, or whose code left the tariff, must be checked again.
+    try { const n = await (await import('../products/repo.js')).expireCheck(); if (n) console.log(`Products: ${n} set to EXPIRED`); }
+    catch (e) { console.warn('Product expiry check:', (e as Error).message); }
   };
   const next = () => {
     const now = new Date(), t = new Date(now);

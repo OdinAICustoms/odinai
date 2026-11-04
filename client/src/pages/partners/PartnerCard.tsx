@@ -3,13 +3,15 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api, type Me } from '../../api';
 import { T, fmtDateTime, getLang, locale } from '../../i18n';
 import { Fields, Findings, PartnerPicker, type FieldSpec } from '../../components/Form';
+import { RtPermitView } from '../../components/Rt';
+import { fmtCode, pPill } from '../products/ProductList';
 
 type Meta = { roles: Record<string, { no: string; en: string }>; addressTypes: Record<string, string>; identifierTypes: Record<string, string>;
   contactTypes: Record<string, string>; relationshipTypes: Record<string, string>; categories: Record<string, string>; priceItems: any[] };
 type Result = { partner: any; warnings?: { msg: string }[] };
 
 const TABS: [string, string][] = [['general', 'Generelt'], ['addresses', 'Adresser'], ['identifiers', 'Identifikatorer'], ['roles', 'Roller'],
-  ['contacts', 'Kontakter'], ['links', 'Koblinger og fullmakt'], ['credit', 'Tollkreditt'], ['prices', 'Priser og fakturering'], ['registry', 'Brønnøysund'], ['audit', 'Endringslogg']];
+  ['contacts', 'Kontakter'], ['links', 'Koblinger og fullmakt'], ['credit', 'Tollkreditt'], ['prices', 'Priser og fakturering'], ['products', 'Produkter'], ['rt', 'RT-tillatelser'], ['registry', 'Brønnøysund'], ['audit', 'Endringslogg']];
 const d = (v: string | null) => (v ? new Date(v + 'T00:00:00').toLocaleDateString(locale()) : '');
 const period = (r: any) => (r.valid_from || r.valid_to ? `${d(r.valid_from) || '…'} – ${d(r.valid_to) || '…'}` : '');
 
@@ -90,6 +92,8 @@ export function PartnerCard({ me }: { me: Me }) {
         intro="Kontoene brukes i rubrikk 48 når partneren er tollskyldner (rollen DEB) eller representant."
         cols={[['Konto', c => <span className="mono">{c.account}</span>], ['Type', c => T(c.payment_type === 'TOLLKREDITT' ? 'Tollkreditt' : 'Dagsoppgjør')], ['Gyldig til', c => d(c.valid_to)]]} />}
       {tab === 'prices' && <Prices p={p} meta={meta} me={me} can={!!can} act={act} />}
+      {tab === 'products' && <PartnerProducts id={p.id} />}
+      {tab === 'rt' && <PartnerRt id={p.id} me={me} />}
       {tab === 'registry' && <Registry p={p} can={!!can} act={act} />}
       {tab === 'audit' && <PartnerAudit id={p.id} />}
     </section>
@@ -291,5 +295,42 @@ function PartnerAudit({ id }: { id: string }) {
       <tbody>{rows.map(r => <tr key={r.id}><td className="nowrap">{fmtDateTime(r.at)}</td><td>{r.user_name || '—'}</td><td>{T(ACTION[r.action] ?? r.action)}{r.detail?.kind ? ` · ${T(KIND[r.detail.kind] ?? r.detail.kind)}` : ''}</td>
         <td>{r.changes ? Object.entries(r.changes as Record<string, [unknown, unknown]>).map(([k, [a, b]]) => <div key={k}><b>{k}</b>: {show(a)} → {show(b)}</div>) : r.detail ? <span className="muted">{show(r.detail)}</span> : ''}</td></tr>)}
         {!rows.length && <tr><td colSpan={4} className="muted">{T('Ingen endringer, eller du mangler tilgang til endringsloggen.')}</td></tr>}</tbody></table></div>
+  );
+}
+
+/** The client's products (the product register filtered on owner). */
+function PartnerProducts({ id }: { id: string }) {
+  const nav = useNavigate();
+  const [rows, setRows] = useState<any[] | null>(null);
+  useEffect(() => { api(`/partners/${id}/products`).then(setRows); }, [id]);
+  if (!rows) return <p className="muted">{T('Laster …')}</p>;
+  return (
+    <div className="panelbox">
+      <div className="row" style={{ marginTop: 0 }}><span className="muted">{rows.length} {T('produkter')}</span><span className="spacer" />
+        <button className="linkbtn" type="button" onClick={() => nav('/products')}>{T('Åpne produktregisteret')} →</button></div>
+      <div className="tblwrap"><table className="t"><thead><tr><th>{T('Produktnr.')}</th><th>{T('Navn')}</th><th>{T('Varenummer')}</th><th>{T('Opprinnelse')}</th><th>{T('Artikkelnr. / GTIN')}</th><th>{T('Status')}</th></tr></thead>
+        <tbody>{rows.map(r => <tr key={r.id} className="click" onClick={() => nav(`/products/${r.id}`)}><td className="mono">{r.product_no}</td><td><b>{r.name}</b></td>
+          <td className="mono nowrap">{fmtCode(r.code)}</td><td>{r.origin}</td><td className="muted">{r.ids}</td><td>{pPill(r.status)}</td></tr>)}
+          {!rows.length && <tr><td colSpan={6} className="muted">{T('Ingen produkter.')}</td></tr>}</tbody></table></div>
+    </div>
+  );
+}
+
+/** RT permits held by the client, and its RT products without a valid permit. */
+function PartnerRt({ id, me }: { id: string; me: Me }) {
+  const nav = useNavigate();
+  const [x, setX] = useState<{ permits: any[]; missing: any[] } | null>(null);
+  const load = () => api(`/partners/${id}/rt-permits`).then(setX);
+  useEffect(() => { load(); }, [id]);
+  if (!x) return <p className="muted">{T('Laster …')}</p>;
+  const can = me.perms.includes('product.edit');
+  return (
+    <div className="panelbox">
+      {x.missing.length > 0 && <div className="warnmsg">{T('RT100 gjelder, men ingen gyldig tillatelse')}: {x.missing.map((m, i) => <span key={m.id}>{i ? ', ' : ''}
+        <a href={`/products/${m.id}`} onClick={e => { e.preventDefault(); nav(`/products/${m.id}?tab=rt`); }}>{m.product_no} {m.name}</a></span>)}</div>}
+      <p className="hint" style={{ marginTop: 0 }}>{T('Nye vedtak registreres fra produktkortet, fordi ett vedtak gjelder ett produkt.')}</p>
+      {x.permits.map(r => <RtPermitView key={r.id} r={r} can={can} onChange={load} showHolder={false} />)}
+      {!x.permits.length && <p className="muted">{T('Ingen RT-tillatelser.')}</p>}
+    </div>
   );
 }
