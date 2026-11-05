@@ -100,6 +100,15 @@ export const EN_PATTERNS: [RegExp, (m: RegExpMatchArray, t: Tr) => string][] = [
   [/^(.+): filtypen kan ikke leses av AI-tjenesten (.+)$/, m => `${m[1]}: the AI service cannot read this file type (PDF, image or text/CSV).`],
   [/^AI-svaret hadde ikke riktig struktur \((.*)\)\. Ingenting er fylt inn\.$/, m => `The AI answer did not have the right structure (${m[1]}). Nothing has been filled in.`],
   [/^Opprettet (BP-\d+)$/, m => `Created ${m[1]}`],
+  // Submit, approval, TVINN (phase 2d).
+  [/^(Returnert|Trukket tilbake|Sending avbrutt): (.+)$/s, (m, t) => `${{ Returnert: 'Returned', 'Trukket tilbake': 'Recalled', 'Sending avbrutt': 'Sending cancelled' }[m[1]]}: ${t(m[2])}`],
+  [/^Deklarasjonen har status (\w+) og kan ikke sendes til godkjenning\.$/, m => `The declaration has status ${m[1]} and cannot be submitted for approval.`],
+  [/^Deklarasjonen har (\d+) feil som må rettes før innsending\.$/, m => `The declaration has ${m[1]} errors that must be corrected before submitting.`],
+  [/^(\d+) kontrollpunkt(er)? fra AI-lesingen må avklares før innsending\.$/, m => `${m[1]} review point${m[2] ? 's' : ''} from the AI reading must be cleared before submitting.`],
+  [/^Deklarasjonen har fått (\d+) feil siden innsendingen (.+)$/, m => `The declaration has ${m[1]} new errors since it was submitted (e.g. the date). Return it for correction.`],
+  [/^SIMULATOR \(øvelse\) — deklarasjonen er tatt ut til statistisk kontroll\.(.+)$/s, () => 'SIMULATOR (rehearsal) — the declaration is selected for statistical control. Check the declared information; this is not a rejection. The simulator selects declarations with an even running number and a statistical value over NOK 250,000.'],
+  [/^SIMULATOR — deklarasjonen er godkjent\. Statistisk verdi (.+?) kr; toll og avgifter (.+?) kr( belastes konto (\d+))?; merverdiavgift (.+?) kr\.(.*)$/s,
+    m => `SIMULATOR — the declaration is accepted. Statistical value NOK ${m[1]}; duty and levies NOK ${m[2]}${m[4] ? ` charged to account ${m[4]}` : ''}; VAT NOK ${m[5]}.${/CHED/.test(m[6]) ? ' The consignment requires CHED — release depends on the border control post\'s decision.' : ' The goods are released for the declared procedure.'}`],
   // Format errors on save.
   [/^(Rubrikk \S+) (må ha seks siffer|må ha 8 siffer|har fire siffer|må være en landkode med to bokstaver|må være en valutakode med tre bokstaver)\.$/, m => `${m[1].replace('Rubrikk', 'Box')} ${{
     'må ha seks siffer': 'must have six digits', 'må ha 8 siffer': 'must have 8 digits', 'har fire siffer': 'has four digits',

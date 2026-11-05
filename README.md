@@ -13,7 +13,7 @@ Requirements and design: the OdinAi requirements document (Claude Docs). Built o
 |---|---|---|
 | 0 | Docker, database, login, roles, audit log, NO/EN, logo, daily reference data | Done |
 | 1 | Business partners, products, RT permits, data from ODIN LINK | Done (move: `npm run import:odinlink -w server`, dry run unless `-- --commit`) |
-| 2 | AI import declarations, review, approval, TVINN simulator | 2a declaration, 2b calculation (checked against two accepted Proteria declarations) and 2c AI intake done; next 2d approval and TVINN simulator |
+| 2 | AI import declarations, review, approval, TVINN simulator | Done: declaration, calculation (checked against two accepted Proteria declarations), AI intake, four-eyes approval, TVINN simulator and send queue. Left for later: release e-mail to the client (needs SMTP) and the real AI trial |
 | 3 | Export and Digitoll | |
 | 4 | Invoicing (prices per client, KID, bank API, Fiken) | |
 | 5 | Online, Tolletaten test period, go-live | |

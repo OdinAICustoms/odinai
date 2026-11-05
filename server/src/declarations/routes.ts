@@ -4,6 +4,8 @@ import { handle, fail } from '../errors.js';
 import { need } from '../auth/guard.js';
 import * as D from './repo.js';
 import * as AI from '../ai/intake.js';
+import * as W from './workflow.js';
+import * as Q from '../tvinn/queue.js';
 
 export const declarationRoutes = Router();
 const read = need('declaration.read');
@@ -23,6 +25,25 @@ declarationRoutes.post('/declarations/:id/documents', edit, handle(async req => 
   await D.storeDocument(req, req.params.id, req.body ?? {});
   return D.card(req.params.id);
 }));
+
+/* Submit, approval and TVINN (phase 2d). */
+Q.setValidator(D.validate);
+declarationRoutes.post('/declarations/:id/submit', edit, handle(req => W.submit(req, req.params.id, req.body?.version)));
+declarationRoutes.post('/declarations/:id/recall', edit, handle(req => W.giveBack(req, req.params.id, req.body?.reason, true)));
+declarationRoutes.post('/declarations/:id/approve', need('declaration.approve'), handle(req => W.approve(req, req.params.id)));
+declarationRoutes.post('/declarations/:id/return', need('declaration.approve'), handle(req => W.giveBack(req, req.params.id, req.body?.reason)));
+declarationRoutes.post('/declarations/:id/comments', read, handle(req => W.comment(req, req.params.id, req.body?.text)));
+declarationRoutes.get('/declarations/:id/versions/:no/message', read, async (req, res, next) => {
+  try {
+    const m = await W.message(req.params.id, Number(req.params.no));
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Content-Disposition', `inline; filename="${m.tvinn_id}.edi"`);
+    res.send(m.message);
+  } catch (e) { next(e); }
+});
+declarationRoutes.get('/send-queue', need('declaration.read'), handle(() => Q.list()));
+declarationRoutes.post('/send-queue/:id/retry', need('declaration.approve'), handle(async req => { await Q.retry(req, req.params.id); return Q.list(); }));
+declarationRoutes.post('/send-queue/:id/cancel', need('declaration.approve'), handle(async req => { await Q.cancel(req, req.params.id, req.body?.reason); return Q.list(); }));
 
 /* AI intake (phase 2c). */
 declarationRoutes.get('/ai/status', read, handle(() => AI.status()));

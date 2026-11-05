@@ -16,10 +16,11 @@ import { ProductList, RtList } from './pages/products/ProductList';
 import { ProductCard } from './pages/products/ProductCard';
 import { DeclarationList } from './pages/declarations/DeclarationList';
 import { DeclarationEditor } from './pages/declarations/DeclarationEditor';
+import { SendQueue } from './pages/declarations/WorkflowParts';
 
 /** The modules in the dark-blue band; each lists its functions for the light-blue band. */
 const MODULES = [
-  { path: '/declarations', label: 'AI-deklarasjoner', icon: 'doc', sub: [['/declarations', 'Innførsel']] as [string, string][] },
+  { path: '/declarations', label: 'AI-deklarasjoner', icon: 'doc', sub: [['/declarations', 'Innførsel'], ['/send-queue', 'Sendekø']] as [string, string][], also: ['/send-queue'] },
   { path: '/partners', label: 'Forretningspartnere', icon: 'org', sub: [] },
   { path: '/products', label: 'Produkter', icon: 'box', sub: [['/products', 'Produktregister'], ['/rt-permits', 'RT-tillatelser']] as [string, string][], also: ['/rt-permits'] },
   { path: '/invoicing', label: 'Fakturering', icon: 'bill', phase: 4, sub: [] },
@@ -93,6 +94,7 @@ function Shell({ me, onLang, onSignOut }: { me: Me; onLang: (l: Lang) => void; o
             <Route path="/ai" element={<Navigate to="/declarations" replace />} />
             <Route path="/declarations" element={<DeclarationList me={me} />} />
             <Route path="/declarations/:id" element={<DeclarationEditor me={me} />} />
+            <Route path="/send-queue" element={<SendQueue me={me} />} />
             {MODULES.filter(m => m.phase).map(m => <Route key={m.path} path={m.path + '/*'} element={<Upcoming title={m.label} phase={m.phase!} />} />)}
             <Route path="/partners" element={<PartnerList me={me} />} />
             <Route path="/partners/:id" element={<PartnerCard me={me} />} />

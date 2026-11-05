@@ -7,6 +7,7 @@ import { DocList, Upload } from '../../components/Docs';
 import { fmtCode } from '../products/ProductList';
 import { dPill, fmtAmount } from './DeclarationList';
 import { AiPanel, ItemSource } from './AiParts';
+import { WorkflowBar, HistoryPanel } from './WorkflowParts';
 
 type Issue = { lvl: 'err' | 'warn' | 'info'; box: string; rule: string; msg: string; item?: number; field?: string };
 type Meta = Record<string, any>;
@@ -87,7 +88,7 @@ export function DeclarationEditor({ me }: { me: Me }) {
         <button className="btn grey" type="button" onClick={() => nav('/declarations')}>← {T('Deklarasjoner')}</button>
       </div>
       {d.status === 'CANCELLED' && <div className="warnmsg">{T('Kansellert')}: {d.cancel_reason}</div>}
-      {!d.editable && d.status !== 'CANCELLED' && <div className="warnmsg">{T('Deklarasjonen er sendt til godkjenning eller videre og kan ikke endres.')}</div>}
+      <WorkflowBar d={d} me={me} act={act} onReload={load} dirty={dirty.length > 0} />
 
       <div className="declgrid">
         <div>
@@ -154,6 +155,7 @@ export function DeclarationEditor({ me }: { me: Me }) {
 
           <Items d={d} meta={meta} can={can} sel={item} setSel={setItem} act={act} />
 
+          <HistoryPanel d={d} act={act} />
           <Section title="Merknader">
             <Field {...hp} k="notes" box="" label="Interne merknader (sendes ikke til Tolletaten)" t="textarea" wide />
           </Section>

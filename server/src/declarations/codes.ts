@@ -121,5 +121,5 @@ export const BOX_ROLES: Record<'exporter_id' | 'importer_id' | 'declarant_id', {
 };
 
 export const STATUSES = ['DRAFT', 'SUBMITTED', 'RETURNED', 'APPROVED', 'SENT', 'ACCEPTED', 'REJECTED', 'CANCELLED'] as const;
-/** Only these can be edited; everything after submit is frozen until it comes back. */
-export const EDITABLE = ['DRAFT', 'RETURNED'];
+/** Only these can be edited; everything after submit is frozen until it comes back (returned, recalled, rejected by TVINN). */
+export const EDITABLE = ['DRAFT', 'RETURNED', 'REJECTED'];
