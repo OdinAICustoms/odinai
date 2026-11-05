@@ -1,4 +1,7 @@
 import type pg from 'pg';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { ROOT } from '../config.js';
 import { bulkInsert } from './bulk.js';
 import type { Fetchers } from './fetch.js';
 import { dateOrNull, decimal, displayCode, normCode, padCode, pick, recordsAt, upperCode, validateMapping } from './parse.js';
@@ -358,12 +361,79 @@ const additionalDuty: Dataset = {
   }
 };
 
+/* ------------------------------ export (phase 3a) ------------------------------ */
+const exportRestrictions: Dataset = {
+  id: 'utforselsrestriksjoner', label: 'Utførselsrestriksjoner', source: 'data.toll.no: utfoerselsrestriksjon',
+  count: c => n(c, 'SELECT COUNT(*) n FROM ref_export_restriction'),
+  async load(f, c) {
+    const { data, url } = await f.ckanDataset('utfoerselsrestriksjon');
+    const { rows } = recordsAt(data, '$.varer');
+    validateMapping(rows, { code: ['id'], restrictions: ['restriksjoner'] }, ['code', 'restrictions']);
+    await c.query('DELETE FROM ref_export_restriction');
+    const out: unknown[][] = [];
+    for (const v of rows) {
+      const code = padCode(v.id);
+      if (code.length !== 8) continue;
+      for (const r of Array.isArray(v.restriksjoner) ? v.restriksjoner : []) {
+        if (!r.restriksjontype) continue;
+        out.push([code, trimmed(r.landgruppe), upperCode(r.restriksjontype), trimmed(r.restriksjonstypebeskrivelse ?? r.restriksjontypebeskrivelse),
+          Number(r.restriksjonsgruppe) || null, trimmed(r.restriksjonsgruppebeskrivelse), dateOrNull(r.fomdato), dateOrNull(r.tomdato)]);
+      }
+    }
+    await bulkInsert(c, 'ref_export_restriction', ['code', 'landgruppe', 'rtype', 'rtype_text', 'rgroup', 'rgroup_text', 'valid_from', 'valid_to'], out);
+    return { rowsSeen: rows.length, rowsWritten: out.length, url };
+  }
+};
+const exportLevies: Dataset = {
+  id: 'utforselsavgifter', label: 'Utførselsavgifter', source: 'data.toll.no: utfoerselsavgift',
+  count: c => n(c, 'SELECT COUNT(*) n FROM ref_export_levy'),
+  async load(f, c) {
+    const { data, url } = await f.ckanDataset('utfoerselsavgift');
+    const { rows } = recordsAt(data, '$.varer');
+    validateMapping(rows, { code: ['id'], rates: ['avgiftsatser'] }, ['code', 'rates']);
+    await c.query('DELETE FROM ref_export_levy');
+    const out: unknown[][] = [];
+    for (const v of rows) {
+      const code = padCode(v.id);
+      for (const s of Array.isArray(v.avgiftsatser) ? v.avgiftsatser : []) for (const t of Array.isArray(s.avgiftstyper) ? s.avgiftstyper : [])
+        for (const g of Array.isArray(t.avgiftsgrupper) ? t.avgiftsgrupper : []) {
+          const rate = decimal(g.sats);
+          if (code.length !== 8 || rate == null) continue;
+          out.push([code, trimmed(s.landgruppe), upperCode(t.avgiftstype), trimmed(t.avgiftstypebeskrivelse), Number(g.avgiftsgruppe) || null,
+            trimmed(g.avgiftsgruppebeskrivelse), rate, trimmed(g.enhet) ?? 'P', trimmed(g.enhetbeskrivelse), dateOrNull(g.fomdato), dateOrNull(g.tomdato)]);
+        }
+    }
+    await bulkInsert(c, 'ref_export_levy', ['code', 'landgruppe', 'levy_type', 'levy_text', 'levy_group', 'group_text', 'rate', 'unit', 'unit_text', 'valid_from', 'valid_to'], out);
+    return { rowsSeen: rows.length, rowsWritten: out.length, url };
+  }
+};
+const exportRefs = codeList({
+  id: 'utforselsreferanser', label: 'Referansekoder ved utførsel (rubrikk 44)', dataset: 'utfoerselsreferanse', path: '$.referanser', table: 'ref_export_ref',
+  columns: ['code', 'text', 'valid_from', 'valid_to'], mapping: { code: ['kode'], text: ['beskrivelse'] }, required: ['code'],
+  row: r => { const code = upperCode(r.kode); return code ? [code, trimmed(r.beskrivelse), dateOrNull(r.fomdato), dateOrNull(r.tomdato)] : null; }
+});
+/** Tolletaten publishes the exit offices only as a spreadsheet; it is kept as server/reference/exit-offices.json. */
+const exitOffices: Dataset = {
+  id: 'utpasseringssteder', label: 'Utpasseringstollsteder og ulogiske transportmåter (rubrikk 29)', source: 'Tolletaten (regneark), lagret i server/reference',
+  count: c => n(c, 'SELECT COUNT(*) n FROM ref_exit_office'),
+  async load(_f, c) {
+    const file = path.join(ROOT, 'server', 'reference', 'exit-offices.json');
+    const j = JSON.parse(await fs.readFile(file, 'utf8'));
+    const rows: any[] = Array.isArray(j.offices) ? j.offices : [];
+    if (!rows.length) throw new Error('Fant ingen utpasseringstollsteder i exit-offices.json.');
+    await c.query('DELETE FROM ref_exit_office');
+    await bulkInsert(c, 'ref_exit_office', ['code', 'name', 'illogical_modes'], rows.filter(r => /^\d{4}$/.test(String(r.code))).map(r => [r.code, r.name, r.illogicalModes ?? []]));
+    return { rowsSeen: rows.length, rowsWritten: rows.length, url: 'file:server/reference/exit-offices.json' };
+  }
+};
+
 export const DATASETS: Dataset[] = [
   tariff,
   rates('tollsatser', 'tollavgiftssats', 'TL1', 'Tollsatser (TL1)'),
   rates('rt100-satser', 'raavaretollavgiftssats', 'RT100', 'Råvaretollavgift (RT100)'),
   groups, restrictions, errors, fx, postal,
-  offices, procedures, importRefs, quotas, codeValidity, levies, additionalDuty
+  offices, procedures, importRefs, quotas, codeValidity, levies, additionalDuty,
+  exportRestrictions, exportLevies, exportRefs, exitOffices
 ];
 export const datasetById = (id: string) => DATASETS.find(d => d.id === id);
 export { normCode };

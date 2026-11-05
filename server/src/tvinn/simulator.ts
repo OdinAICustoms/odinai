@@ -36,6 +36,14 @@ export async function submit(s: any, current: { issues: any[] }, sequence: numbe
     return { result: 'REJECTED', mrn: null, tvinnNo: null, decision: 'Avvist i inndatakontrollen', simulator: true, errors: errs,
       text: 'SIMULATOR — TVINN avviste deklarasjonen i inndatakontrollen. Rett feilene og send inn deklarasjonen på nytt i sin helhet.' };
 
+  // Export: an accepted declaration is cleared for exit at the exit office (box 29).
+  if (h.direction === 'EXPORT')
+    return { result: 'ACCEPTED', mrn: buildMrn(h.exit_office ?? h.office), tvinnNo: buildTvinnNo(h.exit_office ?? h.office ?? '443091'), errors: [], simulator: true,
+      decision: 'Klarert for utførsel',
+      text: `SIMULATOR — utførselsdeklarasjonen er godkjent. Statistisk verdi ${kr(calc.statValue ?? 0)} kr.` +
+        (calc.levy > 0 ? ` Utførselsavgift ${kr(calc.levy)} kr belastes konto ${h.payment_account ?? '—'}.` : '') +
+        (h.exit_office ? ` Varene skal passere utpasseringstollsted ${h.exit_office}.` : '') };
+
   const ched = (s.items ?? []).some((it: any) => (Array.isArray(it.docs) ? it.docs : []).some((d: any) => String(d.code).toUpperCase() === 'VT' && /CHED/i.test(String(d.ref ?? ''))));
   const stat = String(process.env.SIM_STAT_CHECK ?? 'on').toLowerCase() !== 'off' && sequence % 2 === 0 && Number(calc.statValue) > 250000 && !ched;
   const mrn = buildMrn(h.office), tvinnNo = buildTvinnNo(h.office);

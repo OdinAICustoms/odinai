@@ -9,6 +9,7 @@ import { check, summary, type PartyInfo, type RuleContext } from './rules.js';
 import { calculate, B12_TYPES, B12_BASES, type CalcContext } from './calc.js';
 import * as AI from '../ai/intake.js';
 import * as H from './history.js';
+import * as X from './export.js';
 
 /**
  * Import declarations: the header (SAD boxes as columns) and its goods items. Only a DRAFT or RETURNED
@@ -40,9 +41,22 @@ const ITEM: Record<string, Kind> = {
   gross_kg: 'num', net_kg: 'num', supp_qty: 'num', price: 'num', valuation_method: { enum: Object.keys(C.VALUATION_METHODS) },
   freight: 'num', add_amount: 'num', ded_amount: 'num', docs: 'docs', article_no: 'text', gtin: 'text', levies: 'levies'
 };
+/* Export (phase 3a): its own code lists for box 1, 25 and 36, and the boxes only export has. */
+const HEADER_EXPORT: Record<string, Kind> = {
+  ...HEADER, decl_type: { enum: Object.keys(X.EXPEDITION_TYPES) }, transport_mode: { enum: Object.keys(X.TRANSPORT_MODES) },
+  destination_country: country, exit_office: { re: /^\d{4}$/, msg: 'må ha fire siffer', digits: true }, storage_type: { enum: X.STORAGE_TYPES },
+  invoice_type: { enum: Object.keys(X.INVOICE_TYPES) }, invoice_no: 'text', invoice_date: 'date', fx_manual: 'num'
+};
+const ITEM_EXPORT: Record<string, Kind> = {
+  ...ITEM, preference: { enum: Object.keys(X.PREFERENCES) }, county: { re: /^\d{2}$/, msg: 'er en fylkeskode med to siffer', digits: true },
+  container_no: 'text', chassis: 'text', stat_value: 'num', levy_group: 'text'
+};
+const headerSpec = (direction: string) => (direction === 'EXPORT' ? HEADER_EXPORT : HEADER);
+const itemSpec = (direction: string) => (direction === 'EXPORT' ? ITEM_EXPORT : ITEM);
 const JSON_COLS = new Set(['docs', 'source', 'levies', 'value_details']);
 const jsonOr = (k: string, v: unknown) => (JSON_COLS.has(k) ? JSON.stringify(v) : v);
 const LABEL: Record<string, string> = {
+  exit_office: 'Rubrikk 29', destination_country: 'Rubrikk 17a', county: 'Rubrikk 34b', fx_manual: 'Rubrikk 23', stat_value: 'Rubrikk 46',
   office: 'Rubrikk A', dispatch_country: 'Rubrikk 15', transport_nat: 'Rubrikk 21', currency: 'Rubrikk 22a', code: 'Rubrikk 33',
   origin: 'Rubrikk 34', procedure: 'Rubrikk 37', invoice_total: 'Rubrikk 22', price: 'Rubrikk 42', net_kg: 'Rubrikk 38', gross_kg: 'Rubrikk 35'
 };
@@ -144,18 +158,18 @@ export async function card(id: string) {
   const [client, exporter, importer, declarant] = await Promise.all([party(d.client_id), party(d.exporter_id), party(d.importer_id), party(d.declarant_id)]);
   const users = await query('SELECT id, name FROM users WHERE id = ANY($1)', [[d.created_by, d.updated_by].filter(Boolean)]);
   const name = (u: string | null) => users.find(x => x.id === u)?.name ?? null;
-  const cx = await context(d, its);
-  const issues = check(cx);
+  const { issues, calc } = await checked(d, its);
   return {
-    calc: cx.calc, reviews: await AI.reviewsFor(id), intakes: await AI.intakesFor(id), ai: AI.status(), ...(await H.forCard(id)),
-    ...d, items: its, parties: { client, exporter, importer, declarant }, box1: C.box1Column1(d.dispatch_country),
+    calc, reviews: await AI.reviewsFor(id), intakes: await AI.intakesFor(id), ai: AI.status(), ...(await H.forCard(id)),
+    ...d, items: its, parties: { client, exporter, importer, declarant },
+    box1: d.direction === 'EXPORT' ? X.box1Export(d.destination_country) : C.box1Column1(d.dispatch_country),
     created_by_name: name(d.created_by), updated_by_name: name(d.updated_by),
     editable: C.EDITABLE.includes(d.status), documents: await docs.listFor('DECLARATION', id), issues, check: summary(issues)
   };
 }
 
 export async function list(f: Record<string, string | undefined> = {}) {
-  const p: unknown[] = [], where = ["d.direction = 'IMPORT'"];
+  const p: unknown[] = [f.direction === 'EXPORT' ? 'EXPORT' : 'IMPORT'], where = ['d.direction = $1'];
   const add = (sql: string, v: unknown) => { p.push(v); where.push(sql.replace(/\?/g, `$${p.length}`)); };
   if (f.status) add('d.status = ANY(?)', f.status.split(','));
   else if (f.all !== '1') where.push("d.status <> 'CANCELLED'");
@@ -274,10 +288,58 @@ export async function context(d: any, its: any[]): Promise<RuleContext> {
   };
 }
 
+/** The check and the calculation, import or export. */
+async function checked(d: any, its: any[]) {
+  if (d.direction === 'EXPORT') {
+    const cx = await exportContext(d, its);
+    return { issues: X.checkExport(cx), calc: cx.calc as any };
+  }
+  const cx = await context(d, its);
+  return { issues: check(cx), calc: cx.calc as any };
+}
+
 export async function validate(id: string) {
   const d = await requireDecl(id);
-  const issues = check(await context(d, await items(id)));
+  const { issues } = await checked(d, await items(id));
   return { issues, ...summary(issues) };
+}
+
+/** What the export rules and calculation need (src/declarations/export.ts). */
+async function exportContext(d: any, its: any[]): Promise<X.ExportRuleContext> {
+  const date = d.decl_date ?? today();
+  const codes = [...new Set(its.map(i => i.code).filter(Boolean))] as string[];
+  const inForce = `(valid_from IS NULL OR valid_from <= $2::date) AND (valid_to IS NULL OR valid_to >= $2::date)`;
+  const tariff: X.ExportRuleContext['tariff'] = {};
+  for (const r of await query('SELECT code, level, supp_unit, supp_text FROM tariff WHERE code = ANY($1)', [codes])) tariff[r.code] = r;
+  const restrictions: X.ExportRuleContext['restrictions'] = {};
+  for (const r of await query(`SELECT code, rtype, rtype_text, rgroup_text FROM ref_export_restriction WHERE code = ANY($1) AND ${inForce} ORDER BY rtype`, [codes, date]))
+    (restrictions[r.code] ??= []).push(r);
+  const levies: Record<string, X.ExportLevy[]> = {};
+  for (const r of await query(`SELECT code, levy_type, levy_group, rate, unit, group_text FROM ref_export_levy WHERE code = ANY($1) AND ${inForce} ORDER BY levy_type, levy_group`, [codes, date]))
+    (levies[r.code] ??= []).push(r);
+  const docCodes = [...new Set([...(d.docs ?? []), ...its.flatMap(i => i.docs ?? [])].map((x: any) => String(x.code ?? '').toUpperCase()).filter(Boolean))];
+  const refs: Record<string, boolean> = {};
+  for (const r of await query(`SELECT code FROM ref_export_ref WHERE code = ANY($1) AND ${inForce}`, [docCodes, date])) refs[r.code] = true;
+  const cur = d.currency ?? null;
+  const tolletaten = cur && cur !== 'NOK' ? (await L.fxRate(cur, date))?.rate : null;
+  const fx = !cur ? null : cur === 'NOK' ? 1 : d.fx_manual != null ? Number(d.fx_manual) : tolletaten != null ? Number(tolletaten) : null;
+  const acct = String(d.payment_account ?? '').replace(/\D/g, '');
+  const fullmakt = d.exporter_id && d.declarant_id && d.exporter_id !== d.declarant_id
+    ? (await one(`SELECT 1 FROM bp_fullmakt WHERE partner_id = $1 AND representative_id = $2 AND status = 'ACTIVE' AND scope IN ('EXPORT', 'IMPORT_EXPORT')
+        AND valid_from <= $3::date AND (valid_to IS NULL OR valid_to >= $3::date)`, [d.exporter_id, d.declarant_id, date])) ? { valid: true } : null
+    : undefined;
+  return {
+    decl: d, items: its, today: today(),
+    parties: { exporter_id: await partyInfo(d.exporter_id, date), importer_id: await partyInfo(d.importer_id, date), declarant_id: await partyInfo(d.declarant_id, date) },
+    fullmakt, tariffLoaded: await L.loaded('tariff'), tariff, restrictions,
+    refsLoaded: !!(await one('SELECT 1 FROM ref_export_ref LIMIT 1')), refs,
+    exitOfficesLoaded: !!(await one('SELECT 1 FROM ref_exit_office LIMIT 1')),
+    exitOffice: d.exit_office ? await one('SELECT code, name, illogical_modes FROM ref_exit_office WHERE code = $1', [d.exit_office]) : null,
+    currencyKnown: !cur || cur === 'NOK' || !!(await one('SELECT 1 FROM currency WHERE code = $1', [cur])),
+    credit: acct ? await one<{ status: string }>(`SELECT status FROM bp_credit_account WHERE account = $1 ORDER BY (status = 'ACTIVE') DESC LIMIT 1`, [acct]) : undefined,
+    calc: X.calculateExport(its, { date, currency: cur, fx, fxSource: !cur ? 'NONE' : cur === 'NOK' ? 'NOK' : d.fx_manual != null ? 'MANUAL' : tolletaten != null ? 'TOLLETATEN' : 'NONE', levies }),
+    openReviews: (await one<{ n: number }>("SELECT COUNT(*) n FROM declaration_review WHERE declaration_id = $1 AND status = 'OPEN'", [d.id]))!.n
+  };
 }
 
 /* ------------------------------ writing ------------------------------ */
@@ -326,22 +388,24 @@ async function insertItem(c: Db, declId: string, o: Record<string, any>, lineNo:
 }
 
 export async function create(req: Request, b: any = {}, from = 'MANUAL') {
-  const o = clean(b, HEADER);
+  const direction = b.direction === 'EXPORT' ? 'EXPORT' : 'IMPORT';
+  const o = clean(b, headerSpec(direction));
   const def = await declarantDefaults();
   o.declarant_id ??= def.declarant_id;
   o.place ??= def.place;
-  o.decl_type ??= '4';
+  o.decl_type ??= direction === 'EXPORT' ? '1' : '4';
   o.decl_date ??= today();
   o.transaction_type ??= '01';
-  o.client_id ??= o.importer_id ?? null;
+  o.client_id ??= (direction === 'EXPORT' ? o.exporter_id : o.importer_id) ?? null;   // export: the exporter is Odin's client
   for (const [k, label] of [['client_id', 'Klienten'], ['exporter_id', 'Avsenderen'], ['importer_id', 'Mottakeren'], ['declarant_id', 'Deklaranten']] as const)
     await requirePartner(o[k], label);
-  const lines = Array.isArray(b.items) ? b.items.map((x: any) => clean(x, ITEM)) : [];
+  const lines = Array.isArray(b.items) ? b.items.map((x: any) => clean(x, itemSpec(direction))) : [];
   const id = await tx(async c => {
     const cols = Object.keys(o);
-    const d = (await c.query(`INSERT INTO declaration (created_from, created_by, updated_by${cols.map(k => ', ' + k).join('')})
-        VALUES ($1, $2, $2${cols.map((_, i) => `, $${i + 3}`).join('')}) RETURNING id, decl_no`,
-      [from, who(req), ...cols.map(k => jsonOr(k, o[k]))])).rows[0];
+    // Export numbers: EXP-<year>-<number>, from the same sequence as import.
+    const d = (await c.query(`INSERT INTO declaration (created_from, created_by, updated_by, direction, decl_no${cols.map(k => ', ' + k).join('')})
+        VALUES ($1, $2, $2, $3, (CASE WHEN $3 = 'EXPORT' THEN 'EXP' ELSE 'IMP' END) || '-' || to_char(now(), 'YYYY') || '-' || lpad(nextval('declaration_number')::text, 5, '0')${cols.map((_, i) => `, $${i + 4}`).join('')}) RETURNING id, decl_no`,
+      [from, who(req), direction, ...cols.map(k => jsonOr(k, o[k]))])).rows[0];
     let n = 0;
     for (const l of lines) await insertItem(c, d.id, fromProduct(l, await requireProduct(l.product_id, c)), ++n);
     await audit(req, { action: 'DECLARATION_CREATED', objectType: 'DECLARATION', objectId: d.id, after: o, detail: { declNo: d.decl_no, from, items: n } }, c);
@@ -353,7 +417,7 @@ export async function create(req: Request, b: any = {}, from = 'MANUAL') {
 export async function update(req: Request, id: string, b: any) {
   const d = await requireDecl(id);
   editable(d, b.version);
-  const o = clean(b, HEADER);
+  const o = clean(b, headerSpec(d.direction));
   for (const [k, label] of [['client_id', 'Klienten'], ['exporter_id', 'Avsenderen'], ['importer_id', 'Mottakeren'], ['declarant_id', 'Deklaranten']] as const)
     if (k in o) await requirePartner(o[k], label);
   const changes = Object.entries(o).filter(([k, v]) => !same(d[k], v));
@@ -371,7 +435,7 @@ export async function update(req: Request, id: string, b: any) {
 export async function addItem(req: Request, id: string, b: any) {
   const d = await requireDecl(id);
   editable(d, b.version);
-  const o = clean(b, ITEM);
+  const o = clean(b, itemSpec(d.direction));
   await tx(async c => {
     const next = (await c.query('SELECT coalesce(MAX(line_no), 0) + 1 n FROM declaration_item WHERE declaration_id = $1', [id])).rows[0].n;
     const itemId = await insertItem(c, id, fromProduct(o, await requireProduct(o.product_id, c)), Number(next));
@@ -392,7 +456,7 @@ export async function updateItem(req: Request, id: string, itemId: string, b: an
   const d = await requireDecl(id);
   editable(d, b.version);
   const it = await requireItem(id, itemId);
-  const o = clean(b, ITEM);
+  const o = clean(b, itemSpec(d.direction));
   if (o.product_id && o.product_id !== it.product_id) fromProduct(o, await requireProduct(o.product_id), it);
   const changes = Object.entries(o).filter(([k, v]) => !same(it[k], v));
   if (!changes.length) return card(id);
@@ -447,7 +511,7 @@ export async function bulkItems(req: Request, id: string, b: any) {
   editable(d, b.version);
   const field = String(b.field ?? '');
   if (!BULK.includes(field)) fail(400, 'Feltet kan ikke endres på alle vareposter samtidig.');
-  const o = clean({ [field]: b.value }, ITEM);
+  const o = clean({ [field]: b.value }, itemSpec(d.direction));
   const n = await tx(async c => {
     const r = await c.query(`UPDATE declaration_item SET ${field} = $2 WHERE declaration_id = $1 AND ${field} IS DISTINCT FROM $2`, [id, o[field]]);
     if (r.rowCount) {
@@ -476,9 +540,9 @@ export async function cancel(req: Request, id: string, reason: unknown, version?
 export async function copy(req: Request, id: string) {
   const d = await requireDecl(id);
   const its = await items(id);
-  const header = Object.fromEntries(Object.keys(HEADER).filter(k => !['decl_date', 'docs', 'reexport_deadline'].includes(k)).map(k => [k, d[k]]));
-  const lines = its.map(it => Object.fromEntries(Object.keys(ITEM).map(k => [k, it[k]])));
-  const made = await create(req, { ...header, items: lines }, 'COPY');
+  const header = Object.fromEntries(Object.keys(headerSpec(d.direction)).filter(k => !['decl_date', 'docs', 'reexport_deadline'].includes(k)).map(k => [k, d[k]]));
+  const lines = its.map(it => Object.fromEntries(Object.keys(itemSpec(d.direction)).map(k => [k, it[k]])));
+  const made = await create(req, { ...header, direction: d.direction, items: lines }, 'COPY');
   await audit(req, { action: 'DECLARATION_COPIED', objectType: 'DECLARATION', objectId: made.id, detail: { from: d.decl_no } });
   return made;
 }
@@ -492,7 +556,10 @@ export async function storeDocument(req: Request, id: string, b: any) {
 export const meta = async () => ({
   statuses: C.STATUSES, declTypes: C.DECL_TYPES, incoterms: C.INCOTERMS, transactionTypes: C.TRANSACTION_TYPES, transportModes: C.TRANSPORT_MODES,
   preferences: C.PREFERENCES, valuationMethods: C.VALUATION_METHODS, paymentMethods: C.PAYMENT_METHODS, declDocCodes: C.DECL_DOC_CODES,
-  itemDocCodes: C.ITEM_DOC_CODES, bulkFields: BULK, euEftaEea: C.EU_EFTA_EEA, box12Types: B12_TYPES, box12Bases: B12_BASES
+  itemDocCodes: C.ITEM_DOC_CODES, bulkFields: BULK, euEftaEea: C.EU_EFTA_EEA, box12Types: B12_TYPES, box12Bases: B12_BASES,
+  export: { declTypes: X.EXPEDITION_TYPES, transactionTypes: X.TRANSACTION_TYPES, transportModes: X.TRANSPORT_MODES, preferences: X.PREFERENCES,
+    counties: X.COUNTIES, storageTypes: X.STORAGE_TYPES, invoiceTypes: X.INVOICE_TYPES, procedures: Object.fromEntries(Object.entries(X.PROCEDURES).map(([k, v]) => [k, v.desc])),
+    collectiveCodes: X.COLLECTIVE_CODES, exitOffices: await query('SELECT code, name FROM ref_exit_office ORDER BY name') }
 });
 
 /** Box 48 choices: credit accounts of the parties (the customs debtor in box 8/2 first, then the representative in box 14). */

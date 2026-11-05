@@ -1,0 +1,675 @@
+{
+ "source": "Tolletaten: Transportmåter og utpasseringstollsteder (xlsx)",
+ "title": "Utpasseringstollsted Ulogiske transportmåter for tollstedet er market med X",
+ "offices": [
+  {
+   "code": "3210",
+   "name": "Tromsø",
+   "illogicalModes": [
+    "12",
+    "16",
+    "17",
+    "20",
+    "23",
+    "30"
+   ]
+  },
+  {
+   "code": "3220",
+   "name": "Hammerfest",
+   "illogicalModes": [
+    "12",
+    "16",
+    "17",
+    "20",
+    "23",
+    "30"
+   ]
+  },
+  {
+   "code": "3225",
+   "name": "Kirkenes",
+   "illogicalModes": [
+    "12",
+    "16",
+    "17",
+    "20",
+    "23",
+    "30",
+    "70"
+   ]
+  },
+  {
+   "code": "3230",
+   "name": "Neiden",
+   "illogicalModes": [
+    "10",
+    "12",
+    "16",
+    "17",
+    "20",
+    "23",
+    "40"
+   ]
+  },
+  {
+   "code": "3240",
+   "name": "Storskog",
+   "illogicalModes": [
+    "12",
+    "16",
+    "17",
+    "20",
+    "23"
+   ]
+  },
+  {
+   "code": "3250",
+   "name": "Polmak",
+   "illogicalModes": [
+    "10",
+    "12",
+    "16",
+    "17",
+    "20",
+    "23",
+    "70"
+   ]
+  },
+  {
+   "code": "3260",
+   "name": "Karigasniemi",
+   "illogicalModes": [
+    "10",
+    "12",
+    "16",
+    "17",
+    "20",
+    "23",
+    "40"
+   ]
+  },
+  {
+   "code": "3270",
+   "name": "Kivilompolo",
+   "illogicalModes": [
+    "10",
+    "12",
+    "16",
+    "17",
+    "20",
+    "23",
+    "40",
+    "50",
+    "70"
+   ]
+  },
+  {
+   "code": "3280",
+   "name": "Utsjok",
+   "illogicalModes": [
+    "10",
+    "12",
+    "16",
+    "17",
+    "20",
+    "23",
+    "40",
+    "50",
+    "70"
+   ]
+  },
+  {
+   "code": "3290",
+   "name": "Helligskogen",
+   "illogicalModes": [
+    "10",
+    "12",
+    "16",
+    "17",
+    "20",
+    "23",
+    "40",
+    "50",
+    "70"
+   ]
+  },
+  {
+   "code": "3310",
+   "name": "Bjørnfjell",
+   "illogicalModes": [
+    "10",
+    "12",
+    "16",
+    "17",
+    "50",
+    "70"
+   ]
+  },
+  {
+   "code": "3315",
+   "name": "Lofoten",
+   "illogicalModes": [
+    "12",
+    "16",
+    "17",
+    "20",
+    "23",
+    "30",
+    "40",
+    "50",
+    "70",
+    "90"
+   ]
+  },
+  {
+   "code": "3320",
+   "name": "Bodø",
+   "illogicalModes": [
+    "12",
+    "16",
+    "17",
+    "20",
+    "23",
+    "30",
+    "50",
+    "70",
+    "90"
+   ]
+  },
+  {
+   "code": "3325",
+   "name": "Brønnøysund",
+   "illogicalModes": [
+    "12",
+    "16",
+    "17",
+    "20",
+    "23",
+    "30",
+    "40",
+    "50",
+    "70",
+    "90"
+   ]
+  },
+  {
+   "code": "3330",
+   "name": "Trondheim",
+   "illogicalModes": [
+    "12",
+    "20",
+    "23",
+    "30",
+    "70",
+    "90"
+   ]
+  },
+  {
+   "code": "3335",
+   "name": "Mosjøen",
+   "illogicalModes": [
+    "12",
+    "16",
+    "17",
+    "20",
+    "23",
+    "30",
+    "40",
+    "50",
+    "70",
+    "90"
+   ]
+  },
+  {
+   "code": "3340",
+   "name": "Vauldal",
+   "illogicalModes": [
+    "10",
+    "12",
+    "16",
+    "17",
+    "20",
+    "23",
+    "40",
+    "50",
+    "70"
+   ]
+  },
+  {
+   "code": "3350",
+   "name": "Storlien",
+   "illogicalModes": [
+    "10",
+    "12",
+    "16",
+    "17",
+    "40",
+    "50",
+    "70"
+   ]
+  },
+  {
+   "code": "3360",
+   "name": "Tärnaby",
+   "illogicalModes": [
+    "10",
+    "12",
+    "16",
+    "17",
+    "23",
+    "40",
+    "50",
+    "70"
+   ]
+  },
+  {
+   "code": "3370",
+   "name": "Junkerdal",
+   "illogicalModes": [
+    "10",
+    "12",
+    "16",
+    "17",
+    "23",
+    "40",
+    "50",
+    "70"
+   ]
+  },
+  {
+   "code": "3380",
+   "name": "Mo",
+   "illogicalModes": [
+    "20",
+    "23",
+    "50",
+    "70"
+   ]
+  },
+  {
+   "code": "3390",
+   "name": "Narvik",
+   "illogicalModes": [
+    "20",
+    "23",
+    "30"
+   ]
+  },
+  {
+   "code": "3410",
+   "name": "Ålesund",
+   "illogicalModes": [
+    "20",
+    "23",
+    "30",
+    "50"
+   ]
+  },
+  {
+   "code": "3420",
+   "name": "Bergen",
+   "illogicalModes": [
+    "20",
+    "23",
+    "30",
+    "50",
+    "90"
+   ]
+  },
+  {
+   "code": "3430",
+   "name": "Flesland",
+   "illogicalModes": [
+    "10",
+    "12",
+    "16",
+    "17",
+    "23",
+    "30"
+   ]
+  },
+  {
+   "code": "3440",
+   "name": "Haugesund",
+   "illogicalModes": [
+    "20",
+    "23",
+    "30",
+    "50"
+   ]
+  },
+  {
+   "code": "3450",
+   "name": "Sola",
+   "illogicalModes": [
+    "20",
+    "23",
+    "30",
+    "50"
+   ]
+  },
+  {
+   "code": "3460",
+   "name": "Stavanger",
+   "illogicalModes": [
+    "12",
+    "20",
+    "23",
+    "30",
+    "40",
+    "50",
+    "90"
+   ]
+  },
+  {
+   "code": "3470",
+   "name": "Sunndalsøra",
+   "illogicalModes": [
+    "12",
+    "16",
+    "17",
+    "20",
+    "23",
+    "30",
+    "40",
+    "50",
+    "70",
+    "90"
+   ]
+  },
+  {
+   "code": "3480",
+   "name": "Ulsteinvik",
+   "illogicalModes": [
+    "12",
+    "16",
+    "17",
+    "20",
+    "23",
+    "30",
+    "40",
+    "50",
+    "70",
+    "90"
+   ]
+  },
+  {
+   "code": "3490",
+   "name": "Kristiansund",
+   "illogicalModes": [
+    "12",
+    "16",
+    "17",
+    "20",
+    "23",
+    "30",
+    "50",
+    "70",
+    "90"
+   ]
+  },
+  {
+   "code": "3495",
+   "name": "Karmøy",
+   "illogicalModes": [
+    "12",
+    "16",
+    "17",
+    "20",
+    "23",
+    "30",
+    "40",
+    "50",
+    "70",
+    "90"
+   ]
+  },
+  {
+   "code": "3510",
+   "name": "Gardermoen",
+   "illogicalModes": [
+    "10",
+    "12",
+    "16",
+    "17",
+    "20",
+    "23",
+    "70",
+    "90"
+   ]
+  },
+  {
+   "code": "3610",
+   "name": "Kristiansand",
+   "illogicalModes": [
+    "12",
+    "30"
+   ]
+  },
+  {
+   "code": "3620",
+   "name": "Grenland",
+   "illogicalModes": [
+    "30",
+    "40"
+   ]
+  },
+  {
+   "code": "3630",
+   "name": "Torp",
+   "illogicalModes": [
+    "10",
+    "12",
+    "16",
+    "17",
+    "20",
+    "23",
+    "30",
+    "50",
+    "70",
+    "90"
+   ]
+  },
+  {
+   "code": "3640",
+   "name": "Sandefjord",
+   "illogicalModes": [
+    "12",
+    "20",
+    "23",
+    "30",
+    "40",
+    "70"
+   ]
+  },
+  {
+   "code": "3650",
+   "name": "Oslo",
+   "illogicalModes": [
+    "20",
+    "23",
+    "30",
+    "40"
+   ]
+  },
+  {
+   "code": "3680",
+   "name": "Drammen",
+   "illogicalModes": [
+    "17",
+    "30",
+    "40"
+   ]
+  },
+  {
+   "code": "3690",
+   "name": "Larvik",
+   "illogicalModes": [
+    "12",
+    "20",
+    "23",
+    "30",
+    "40",
+    "50",
+    "70",
+    "90"
+   ]
+  },
+  {
+   "code": "3695",
+   "name": "Porsgrunn",
+   "illogicalModes": [
+    "12",
+    "16",
+    "17",
+    "20",
+    "23",
+    "30",
+    "40",
+    "50",
+    "70",
+    "90"
+   ]
+  },
+  {
+   "code": "3720",
+   "name": "Ørje",
+   "illogicalModes": [
+    "10",
+    "12",
+    "16",
+    "17",
+    "20",
+    "23",
+    "40"
+   ]
+  },
+  {
+   "code": "3725",
+   "name": "Fredrikstad",
+   "illogicalModes": [
+    "30",
+    "40",
+    "50"
+   ]
+  },
+  {
+   "code": "3730",
+   "name": "Kongsvinger",
+   "illogicalModes": [
+    "10",
+    "12",
+    "16",
+    "40"
+   ]
+  },
+  {
+   "code": "3735",
+   "name": "Moss",
+   "illogicalModes": [
+    "20",
+    "30",
+    "40",
+    "50",
+    "70",
+    "90"
+   ]
+  },
+  {
+   "code": "3740",
+   "name": "Østby",
+   "illogicalModes": [
+    "10",
+    "12",
+    "16",
+    "17",
+    "20",
+    "23",
+    "40"
+   ]
+  },
+  {
+   "code": "3750",
+   "name": "Eda",
+   "illogicalModes": [
+    "10",
+    "12",
+    "16",
+    "23",
+    "40"
+   ]
+  },
+  {
+   "code": "3755",
+   "name": "Sarpsborg",
+   "illogicalModes": [
+    "20",
+    "23",
+    "30",
+    "40",
+    "50",
+    "70"
+   ]
+  },
+  {
+   "code": "3760",
+   "name": "Idre",
+   "illogicalModes": [
+    "10",
+    "12",
+    "16",
+    "17",
+    "20",
+    "23",
+    "40",
+    "50"
+   ]
+  },
+  {
+   "code": "3770",
+   "name": "Svinesund",
+   "illogicalModes": [
+    "10",
+    "12",
+    "16",
+    "17",
+    "23",
+    "40"
+   ]
+  },
+  {
+   "code": "3775",
+   "name": "Halden",
+   "illogicalModes": [
+    "40",
+    "50",
+    "70"
+   ]
+  },
+  {
+   "code": "3780",
+   "name": "Hån",
+   "illogicalModes": [
+    "10",
+    "12",
+    "16",
+    "17",
+    "40"
+   ]
+  },
+  {
+   "code": "3790",
+   "name": "Åsnes",
+   "illogicalModes": [
+    "10",
+    "12",
+    "16",
+    "17",
+    "20",
+    "23",
+    "40"
+   ]
+  }
+ ]
+}

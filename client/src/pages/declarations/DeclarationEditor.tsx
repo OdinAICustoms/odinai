@@ -21,12 +21,14 @@ function useList(path: string) {
 
 const HEADER_KEYS = ['client_id', 'exporter_id', 'importer_id', 'declarant_id', 'own_ref', 'decl_type', 'office', 'decl_date', 'place', 'dispatch_country',
   'transport_id', 'transport_nat', 'container', 'container_nos', 'transport_mode', 'incoterms', 'incoterms_place', 'invoice_total', 'currency',
-  'transaction_type', 'goods_location', 'prev_doc', 'warehouse_id', 'reexport_deadline', 'payment_method', 'payment_account', 'docs', 'notes', 'value_details'];
+  'transaction_type', 'goods_location', 'prev_doc', 'warehouse_id', 'reexport_deadline', 'payment_method', 'payment_account', 'docs', 'notes', 'value_details',
+  'destination_country', 'exit_office', 'storage_type', 'invoice_type', 'invoice_no', 'invoice_date', 'fx_manual'];
 const ITEM_KEYS = ['product_id', 'description', 'packages', 'package_kind', 'marks', 'code', 'origin', 'preference', 'procedure', 'nat_procedure', 'quota',
-  'gross_kg', 'net_kg', 'supp_qty', 'price', 'valuation_method', 'freight', 'add_amount', 'ded_amount', 'docs', 'article_no', 'gtin', 'levies'];
+  'gross_kg', 'net_kg', 'supp_qty', 'price', 'valuation_method', 'freight', 'add_amount', 'ded_amount', 'docs', 'article_no', 'gtin', 'levies',
+  'county', 'container_no', 'chassis', 'stat_value', 'levy_group'];
 const LISTS = new Set(['docs', 'value_details', 'levies']);
 const differs = (a: unknown, b: unknown) => JSON.stringify(a ?? '') !== JSON.stringify(b ?? '');
-const NUMERIC = new Set(['invoice_total', 'packages', 'gross_kg', 'net_kg', 'supp_qty', 'price', 'freight', 'add_amount', 'ded_amount']);
+const NUMERIC = new Set(['fx_manual', 'stat_value', 'invoice_total', 'packages', 'gross_kg', 'net_kg', 'supp_qty', 'price', 'freight', 'add_amount', 'ded_amount']);
 /** Numbers from the server arrive as "1250.50"; show them as the user types them back ("1250,50" is accepted too). */
 const show = (k: string, v: any) => (NUMERIC.has(k) && v !== '' && v != null ? String(Number(v)) : v);
 
@@ -74,18 +76,19 @@ export function DeclarationEditor({ me }: { me: Me }) {
   if (!d || !meta) return <p className="muted">{T('Laster …')}</p>;
   const issuesFor = (field: string) => (d.issues as Issue[]).filter(i => !i.item && i.field === field);
   const hp = { v, set: (k: string, x: any) => setV(s => ({ ...s, [k]: x })), all: (d.issues as Issue[]).filter(i => !i.item), disabled: !can };
+  const exp = d.direction === 'EXPORT';
   const opt = (o: Record<string, string>, withCode = true) => Object.fromEntries(Object.entries(o).map(([k, l]) => [k, withCode ? `${k} – ${T(l)}` : T(l)]));
 
   return (
     <section>
       <div className="cardhead">
-        <div><div className="muted">{T('Innførselsdeklarasjon')} · {T('opprettet')} {fmtDateTime(d.created_at)}{d.created_by_name ? ` · ${d.created_by_name}` : ''}</div>
+        <div><div className="muted">{T(exp ? 'Utførselsdeklarasjon' : 'Innførselsdeklarasjon')} · {T('opprettet')} {fmtDateTime(d.created_at)}{d.created_by_name ? ` · ${d.created_by_name}` : ''}</div>
           <h2 className="mono">{d.decl_no}</h2></div>
         <div className="pills">{dPill(d.status)}<span className="chip mono" title={T('Rubrikk 1')}>{d.box1 ?? '—'} {d.decl_type}</span>
           {d.created_from !== 'MANUAL' && <span className="pill info">{T('Fra')} {d.created_from}</span>}</div>
         <span className="spacer" />
         {me.perms.includes('declaration.edit') && <button className="btn grey" type="button" onClick={async () => { const r = await act(() => api(`/declarations/${id}/copy`, { body: {} })); if (r?.id) nav(`/declarations/${r.id}`); }}>{T('Kopier')}</button>}
-        <button className="btn grey" type="button" onClick={() => nav('/declarations')}>← {T('Deklarasjoner')}</button>
+        <button className="btn grey" type="button" onClick={() => nav(exp ? '/exports' : '/declarations')}>← {T('Deklarasjoner')}</button>
       </div>
       {d.status === 'CANCELLED' && <div className="warnmsg">{T('Kansellert')}: {d.cancel_reason}</div>}
       <WorkflowBar d={d} me={me} act={act} onReload={load} dirty={dirty.length > 0} />
@@ -98,12 +101,45 @@ export function DeclarationEditor({ me }: { me: Me }) {
 
           <AiPanel d={d} can={can} act={act} onReload={load} onGoto={gotoReview} />
           <Section title="Parter">
-            <PartyField k="exporter_id" box="2" label="Avsender / eksportør" d={d} v={v} setV={setV} can={can} issues={issuesFor('exporter_id')} name={d.parties.exporter} />
-            <PartyField k="importer_id" box="8" label="Mottaker / importør" d={d} v={v} setV={setV} can={can} issues={issuesFor('importer_id')} name={d.parties.importer} />
+            <PartyField k="exporter_id" box="2" label={exp ? 'Eksportør' : 'Avsender / eksportør'} d={d} v={v} setV={setV} can={can} issues={issuesFor('exporter_id')} name={d.parties.exporter} />
+            <PartyField k="importer_id" box="8" label={exp ? 'Mottaker i utlandet' : 'Mottaker / importør'} d={d} v={v} setV={setV} can={can} issues={issuesFor('importer_id')} name={d.parties.importer} />
             <PartyField k="declarant_id" box="14" label="Deklarant / representant" d={d} v={v} setV={setV} can={can} issues={issuesFor('declarant_id')} name={d.parties.declarant} />
             <PartyField k="client_id" box="" label="Klient (faktureres)" d={d} v={v} setV={setV} can={can} issues={[]} name={d.parties.client} />
           </Section>
 
+          {exp ? <>
+            <Section title="Deklarasjon">
+              <Field {...hp} k="decl_type" box="1" label="Ekspedisjonstype" t="select" opts={opt(meta.export.declTypes)} req />
+              <Field {...hp} k="decl_date" box="54" label="Deklarasjonsdato" t="date" req />
+              <Field {...hp} k="place" box="54" label="Sted" req />
+              <Field {...hp} k="own_ref" box="7" label="Egen referanse" />
+            </Section>
+            <Section title="Transport">
+              <Field {...hp} k="destination_country" box="17a" label="Bestemmelsesland" t="country" req />
+              <Field {...hp} k="dispatch_country" box="15" label="Avsenderland (bare ved transitt til kontinentalsokkelen)" t="country" />
+              <Field {...hp} k="transport_mode" box="25" label="Transportmåte ved grensen" t="select" opts={opt(meta.export.transportModes)} req />
+              <Field {...hp} k="transport_id" box="18" label="Transportmidlets identitet ved avgang" />
+              <Field {...hp} k="transport_nat" box="21" label="Nasjonalitet ved utpassering" t="country" />
+              <Field {...hp} k="exit_office" box="29" label="Utpasseringstollsted" t="select" opts={Object.fromEntries(meta.export.exitOffices.map((o: any) => [o.code, `${o.code} – ${o.name}`]))} req />
+              <Field {...hp} k="container" box="19" label="Container" t="check" />
+              {v.container && <Field {...hp} k="container_nos" box="19" label="Containernummer (ISO 6346)" req />}
+              <Field {...hp} k="storage_type" box="30" label="Utføres fra tollager (lagertype)" t="select" opts={Object.fromEntries(meta.export.storageTypes.map((s: string) => [s, s]))} />
+              {v.storage_type && <Field {...hp} k="warehouse_id" box="49" label="Lagerkode / godsnummer (15 tegn)" req />}
+              <Field {...hp} k="prev_doc" box="40" label="Tidligere dokument" />
+            </Section>
+            <Section title="Verdi og betaling">
+              <Field {...hp} k="incoterms" box="20" label="Leveringsvilkår" t="select" opts={Object.fromEntries(meta.incoterms.map((x: string) => [x, x]))} req />
+              <Field {...hp} k="incoterms_place" box="20" label="Leveringssted" req />
+              <Field {...hp} k="transaction_type" box="24" label="Transaksjonstype" t="select" opts={opt(meta.export.transactionTypes)} req />
+              <Field {...hp} k="invoice_total" box="22" label="Fakturert totalbeløp" t="number" />
+              <CurrencyField v={v} setV={setV} can={can} issues={issuesFor('currency')} />
+              <Field {...hp} k="fx_manual" box="23" label="Omregningskurs (bare når Tolletaten ikke har kurs)" t="number" />
+              <Field {...hp} k="invoice_type" box="28" label="Faktura: type" t="select" opts={opt(meta.export.invoiceTypes)} />
+              <Field {...hp} k="invoice_no" box="28" label="Fakturanummer" />
+              <Field {...hp} k="invoice_date" box="28" label="Fakturadato" t="date" />
+              <PaymentField id={id!} v={v} setV={setV} can={can} issues={[...issuesFor('payment_method'), ...issuesFor('payment_account')]} meta={meta} />
+            </Section>
+          </> : <>
           <Section title="Deklarasjon">
             <Field {...hp} k="decl_type" box="1" label="Deklarasjonstype" t="select" opts={opt(meta.declTypes)} req />
             <OfficeField v={v} setV={setV} can={can} issues={issuesFor('office')} />
@@ -139,6 +175,7 @@ export function DeclarationEditor({ me }: { me: Me }) {
               <Marks issues={issuesFor('value_details')} />
             </div>
           </Section>
+          </>}
 
           <div className="panelbox" id="sec-docs" tabIndex={-1}>
             <h3><span className="boxno">44</span> {T('Dokumenter for hele sendingen')}</h3>
@@ -196,6 +233,15 @@ const kr = (v: unknown) => `${fmtAmount(v, 0)} kr`;
 function CalcPanel({ c }: { c: any }) {
   if (!c) return null;
   const row = (label: string, v: number, show = true) => (show ? <><dt>{T(label)}</dt><dd className="num">{kr(v)}</dd></> : null);
+  if (c.direction === 'EXPORT') return (
+    <div className="panelbox calcpanel">
+      <h3><span className="boxno">47</span> {T('Beregning')}</h3>
+      {c.fx == null ? <div className="warnmsg">{T('Ingen tollkurs for valutaen på deklarasjonsdatoen — oppgi kursen i rubrikk 23.')}</div>
+        : c.currency && c.currency !== 'NOK' && <p className="hint" style={{ marginTop: 0 }}>{T('Kurs')} {c.currency} {String(c.fx).replace('.', ',')} ({T(c.fxSource === 'MANUAL' ? 'rubrikk 23' : 'Tolletaten')})</p>}
+      <dl className="kv small">{row('Statistisk verdi (46)', c.statValue)}{row('Utførselsavgift', c.levy)}
+        <dt><b>{T('Å betale')}</b></dt><dd className="num"><b>{kr(c.payable)}</b></dd></dl>
+    </div>
+  );
   return (
     <div className="panelbox calcpanel">
       <h3><span className="boxno">47</span> {T('Beregning')}</h3>
@@ -442,7 +488,8 @@ function Items({ d, meta, can, sel, setSel, act }: { d: any; meta: Meta; can: bo
 }
 
 function ItemForm({ d, it, meta, can, onClose, act, issues }: { d: any; it: any; meta: Meta; can: boolean; onClose: () => void; act: (fn: () => Promise<any>, msg?: string) => Promise<any>; issues: Issue[] }) {
-  const empty = { procedure: d.items[0]?.procedure ?? '4000', origin: '', valuation_method: '1', docs: [] };
+  const empty = { procedure: d.items[0]?.procedure ?? (d.direction === 'EXPORT' ? '1000' : '4000'), origin: d.direction === 'EXPORT' ? 'NO' : '',
+    county: d.items[0]?.county ?? '', valuation_method: '1', docs: [] };
   const [v, setV] = useState<Record<string, any>>(() => Object.fromEntries(ITEM_KEYS.map(k => [k, show(k, it ? it[k] : (empty as any)[k]) ?? (LISTS.has(k) ? [] : '')])));
   const [tariff, setTariff] = useState<any>(null);
   useEffect(() => {
@@ -452,6 +499,8 @@ function ItemForm({ d, it, meta, can, onClose, act, issues }: { d: any; it: any;
     return () => clearTimeout(t);
   }, [v.code]);
   const forField = (k: string) => issues.filter(i => i.field === k);
+  const exp = d.direction === 'EXPORT';
+  const line = it ? d.calc?.lines.find((x: any) => x.line_no === it.line_no) : null;
   const hp = { v, set: (k: string, x: any) => setV(s => ({ ...s, [k]: x })), all: issues, disabled: !can, idPrefix: 'it' };
   const opt = (o: Record<string, string>) => Object.fromEntries(Object.entries(o).map(([k, l]) => [k, `${k} – ${T(l)}`]));
   const body = () => {
@@ -480,25 +529,36 @@ function ItemForm({ d, it, meta, can, onClose, act, issues }: { d: any; it: any;
         <Field {...hp} k="package_kind" box="31" label="Kollislag" />
         <Field {...hp} k="marks" box="31" label="Merker og nummer" />
         <Field {...hp} k="code" box="33" label="Varenummer" req />
-        <Field {...hp} k="origin" box="34" label="Opprinnelsesland" t="country" req />
-        <Field {...hp} k="preference" box="36" label="Preferanse" t="select" opts={opt(meta.preferences)} />
+        <Field {...hp} k="origin" box="34" label={exp ? 'Opprinnelsesland (34a)' : 'Opprinnelsesland'} t="country" req />
+        {exp && <Field {...hp} k="county" box="34b" label="Opprinnelses-/produksjonsfylke" t="select" opts={opt(meta.export.counties)} req />}
+        <Field {...hp} k="preference" box="36" label="Preferanse" t="select" opts={opt(exp ? meta.export.preferences : meta.preferences)} />
         <Field {...hp} k="procedure" box="37" label="Prosedyre" req />
-        <Field {...hp} k="nat_procedure" box="37" label="Nasjonal tilleggskode" />
-        <Field {...hp} k="quota" box="39" label="Tollkvote" />
-        <Field {...hp} k="gross_kg" box="35" label="Bruttovekt (kg)" t="number" />
+        {!exp && <Field {...hp} k="nat_procedure" box="37" label="Nasjonal tilleggskode" />}
+        {!exp && <Field {...hp} k="quota" box="39" label="Tollkvote" />}
+        <Field {...hp} k="gross_kg" box="35" label="Bruttovekt (kg)" t="number" req={exp} />
         <Field {...hp} k="net_kg" box="38" label="Nettovekt (kg)" t="number" req />
         <Field {...hp} k="supp_qty" box="41" label={tariff?.supp_text ? `${T('Mengde')} (${tariff.supp_text})` : 'Mengde i annen enhet'} t="number" />
         <Field {...hp} k="price" box="42" label={`${T('Varens pris')} (${d.currency || T('valuta')})`} t="number" req />
         <Field {...hp} k="valuation_method" box="43" label="Verdimetode" t="select" opts={opt(meta.valuationMethods)} />
-        <Field {...hp} k="freight" box="45" label="Frakt til grensen (NOK)" t="number" />
-        <Field {...hp} k="add_amount" box="45" label="Andre tillegg (NOK)" t="number" />
-        <Field {...hp} k="ded_amount" box="45" label="Fradrag (NOK)" t="number" />
+        {!exp ? <>
+          <Field {...hp} k="freight" box="45" label="Frakt til grensen (NOK)" t="number" />
+          <Field {...hp} k="add_amount" box="45" label="Andre tillegg (NOK)" t="number" />
+          <Field {...hp} k="ded_amount" box="45" label="Fradrag (NOK)" t="number" />
+        </> : <>
+          <Field {...hp} k="stat_value" box="46" label="Statistisk verdi satt manuelt (NOK)" t="number" />
+          <Field {...hp} k="container_no" box="31" label="Containernummer" />
+          <Field {...hp} k="chassis" box="31" label="Understellsnummer (chassis)" />
+          {(line?.levy?.groups?.length ?? 0) > 1 && <Field {...hp} k="levy_group" box="47" label={`${T('Avgiftsgruppe')} (${line.levy.type})`} t="select"
+            opts={Object.fromEntries(line.levy.groups.map((g: any) => [String(g.group), `${g.group} – ${g.text ?? ''} (${String(g.rate).replace('.', ',')} %)`]))} />}
+        </>}
         <Field {...hp} k="article_no" box="" label="Artikkelnr. på fakturaen" />
         <Field {...hp} k="gtin" box="" label="GTIN / EAN" />
       </div>
       {tariff && (tariff.missing ? <p className="fmsg err">{T('Varenummeret finnes ikke i tolltariffen.')}</p>
         : <p className="hint">{tariff.display}: {tariff.path_text ?? tariff.text}{tariff.rtRequired ? ' · RT100' : ''}{tariff.restrictions?.length ? ` · ${T('Restriksjoner')}: ${[...new Set(tariff.restrictions.map((r: any) => r.restriction_code))].join(', ')}` : ''}</p>)}
-      {it && <ItemCalc l={d.calc?.lines.find((x: any) => x.line_no === it.line_no)} v={v} setV={setV} can={can} />}
+      {it && !exp && <ItemCalc l={line} v={v} setV={setV} can={can} />}
+      {it && exp && line && <p className="hint"><span className="boxno">46</span>{T('Statistisk verdi')} {kr(line.customsValue ?? 0)}{line.statOverridden ? ` (${T('beregnet')} ${kr(line.statComputed)})` : ''}
+        {line.levy ? ` · ${T('Utførselsavgift')} ${line.levy.type} ${T('gruppe')} ${line.levy.group}: ${kr(line.levy.amount)}` : ''}</p>}
       <Marks issues={forField('levies')} />
       <h3 style={{ marginTop: 12 }}><span className="boxno">44</span> {T('Dokumenter på vareposten')}</h3>
       <DocRows rows={v.docs} codes={meta.itemDocCodes} dateKey="valid" can={can} onChange={docs => setV(s => ({ ...s, docs }))} idPrefix="it-docs" />

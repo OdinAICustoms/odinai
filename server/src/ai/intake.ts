@@ -44,6 +44,7 @@ export async function start(req: Request, declId: string, documentIds?: string[]
   const d = await one('SELECT * FROM declaration WHERE id = $1', [declId]);
   if (!d) fail(404, 'Fant ikke deklarasjonen.');
   if (!['DRAFT', 'RETURNED'].includes(d.status)) fail(409, 'Deklarasjonen kan ikke endres.', 'NOT_EDITABLE');
+  if (d.direction === 'EXPORT') fail(409, 'AI-lesing finnes foreløpig bare for innførsel.', 'AI_IMPORT_ONLY');
   if ((await one<{ n: number }>('SELECT COUNT(*) n FROM declaration_item WHERE declaration_id = $1', [declId]))!.n)
     fail(409, 'Deklarasjonen har allerede vareposter. AI-lesing fyller bare en tom deklarasjon.', 'HAS_ITEMS');
   if (await one("SELECT 1 FROM declaration_intake WHERE declaration_id = $1 AND status IN ('QUEUED', 'RUNNING')", [declId]))

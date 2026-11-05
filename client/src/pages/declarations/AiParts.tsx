@@ -79,7 +79,7 @@ export function AiPanel({ d, can, act, onReload, onGoto }: { d: any; can: boolea
   useEffect(() => { if (!busy) return; const t = setInterval(onReload, 2500); return () => clearInterval(t); }, [busy]);
   const open = (d.reviews ?? []).filter((r: any) => r.status === 'OPEN');
   const cleared = (d.reviews ?? []).filter((r: any) => r.status === 'CLEARED');
-  const canRun = can && d.ai?.configured && !busy && !d.items.length && d.documents.length > 0;
+  const canRun = can && d.direction !== 'EXPORT' && d.ai?.configured && !busy && !d.items.length && d.documents.length > 0;
   if (!last && !canRun) return null;
   return (
     <div className="panelbox aipanel" id="sec-ai" tabIndex={-1}>

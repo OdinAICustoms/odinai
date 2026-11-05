@@ -1,0 +1,728 @@
+{
+  "1": {
+    "subColumns": 1,
+    "values": {
+      "importProcedure": "IMMEDIATE_RELEASE_IMPORT",
+      "outgoingProcedure": "-",
+      "hasOutgoingProcedure": false,
+      "referenceNumber": false,
+      "typeOfReference": "CUDE",
+      "declarantNumber": true,
+      "declarationDate": true,
+      "sequenceNumber": true,
+      "exportId": false,
+      "typeOfExport": null,
+      "incompleteDocumentationReason": ["INCOMPLETE_CUDE_DOCUMENTATION"]
+    },
+    "headerNotes": {
+      "previousDocuments": "ONE_OF",
+      "exportFromEU": "NONE"
+    }
+  },
+  "2": {
+    "subColumns": 1,
+    "values": {
+      "importProcedure": "IMMEDIATE_RELEASE_IMPORT",
+      "outgoingProcedure": "EXP",
+      "hasOutgoingProcedure": true,
+      "referenceNumber": false,
+      "typeOfReference": "CUDE",
+      "declarantNumber": true,
+      "declarationDate": true,
+      "sequenceNumber": true,
+      "exportId": true,
+      "typeOfExport": ["AES_EXPORT", "EUEIR_EXPORT", "EIDR_EXPORT"],
+      "incompleteDocumentationReason": [
+        "INCOMPLETE_CUDE_DOCUMENTATION",
+        "INCOMPLETE_EXP_DOCUMENTATION"
+      ]
+    },
+    "headerNotes": {
+      "previousDocuments": "ONE_OF",
+      "exportFromEU": "AT_LEAST_ONE_OF"
+    }
+  },
+  "3": {
+    "subColumns": 2,
+    "values": {
+      "importProcedure": "IMMEDIATE_RELEASE_IMPORT",
+      "outgoingProcedure": "TRE",
+      "hasOutgoingProcedure": true,
+      "referenceNumber": [false, true],
+      "typeOfReference": ["CUDE", "N820"],
+      "declarantNumber": [true, false],
+      "declarationDate": [true, false],
+      "sequenceNumber": [true, false],
+      "exportId": true,
+      "typeOfExport": ["AES_EXPORT", "EUEIR_EXPORT", "EIDR_EXPORT"],
+      "incompleteDocumentationReason": [
+        "INCOMPLETE_CUDE_DOCUMENTATION",
+        "INCOMPLETE_EXP_DOCUMENTATION",
+        "INCOMPLETE_TRA_DOCUMENTATION"
+      ]
+    },
+    "headerNotes": {
+      "previousDocuments": ["ONE_OF", "AND_ONE_OF"],
+      "exportFromEU": "AT_LEAST_ONE_OF"
+    }
+  },
+  "4": {
+    "subColumns": 2,
+    "values": {
+      "importProcedure": "IMMEDIATE_RELEASE_IMPORT",
+      "outgoingProcedure": "TRA",
+      "hasOutgoingProcedure": true,
+      "referenceNumber": [false, true],
+      "typeOfReference": ["CUDE", "N820"],
+      "declarantNumber": [true, false],
+      "declarationDate": [true, false],
+      "sequenceNumber": [true, false],
+      "exportId": false,
+      "typeOfExport": null,
+      "incompleteDocumentationReason": [
+        "INCOMPLETE_CUDE_DOCUMENTATION",
+        "INCOMPLETE_TRA_DOCUMENTATION"
+      ]
+    },
+    "headerNotes": {
+      "previousDocuments": ["ONE_OF", "AND_ONE_OF"],
+      "exportFromEU": "NONE"
+    }
+  },
+  "5": {
+    "subColumns": 1,
+    "values": {
+      "importProcedure": "TRANSIT_IMPORT",
+      "outgoingProcedure": "TRA",
+      "hasOutgoingProcedure": true,
+      "referenceNumber": true,
+      "typeOfReference": "N820",
+      "declarantNumber": false,
+      "declarationDate": false,
+      "sequenceNumber": false,
+      "exportId": false,
+      "typeOfExport": null,
+      "incompleteDocumentationReason": ["INCOMPLETE_TRA_DOCUMENTATION"]
+    },
+    "headerNotes": {
+      "previousDocuments": "ONE_OF",
+      "exportFromEU": "NONE"
+    }
+  },
+  "6": {
+    "subColumns": 1,
+    "values": {
+      "importProcedure": "TRANSIT_RELEASE",
+      "outgoingProcedure": "EXP",
+      "hasOutgoingProcedure": true,
+      "referenceNumber": true,
+      "typeOfReference": "RETR",
+      "declarantNumber": false,
+      "declarationDate": false,
+      "sequenceNumber": false,
+      "exportId": true,
+      "typeOfExport": ["AES_EXPORT", "EUEIR_EXPORT", "EIDR_EXPORT"],
+      "incompleteDocumentationReason": [
+        "INCOMPLETE_TRA_DOCUMENTATION",
+        "INCOMPLETE_EXP_DOCUMENTATION"
+      ]
+    },
+    "headerNotes": {
+      "previousDocuments": "ONE_OF",
+      "exportFromEU": "AT_LEAST_ONE_OF"
+    }
+  },
+  "7": {
+    "subColumns": 1,
+    "values": {
+      "importProcedure": "IMMEDIATE_RELEASE_VOEC",
+      "outgoingProcedure": "-",
+      "hasOutgoingProcedure": "-",
+      "referenceNumber": false,
+      "typeOfReference": null,
+      "declarantNumber": false,
+      "declarationDate": false,
+      "sequenceNumber": false,
+      "exportId": false,
+      "typeOfExport": null,
+      "value": true,
+      "numberOfItems": true,
+      "harmonizedSystemSubheadingCode": true,
+      "vatIdentificationNumber": true,
+      "incompleteDocumentationReason": ["INCOMPLETE_VOEC_DOCUMENTATION"]
+    },
+    "headerNotes": {
+      "previousDocuments": "NONE",
+      "exportFromEU": "NONE"
+    }
+  },
+  "8": {
+    "subColumns": 1,
+    "values": {
+      "importProcedure": "IMMEDIATE_RELEASE_VOEC",
+      "outgoingProcedure": "EXP",
+      "hasOutgoingProcedure": true,
+      "referenceNumber": false,
+      "typeOfReference": null,
+      "declarantNumber": false,
+      "declarationDate": false,
+      "sequenceNumber": false,
+      "exportId": true,
+      "typeOfExport": ["AES_EXPORT", "EUEIR_EXPORT", "EIDR_EXPORT"],
+      "value": true,
+      "numberOfItems": true,
+      "harmonizedSystemSubheadingCode": true,
+      "vatIdentificationNumber": true,
+      "incompleteDocumentationReason": [
+        "INCOMPLETE_VOEC_DOCUMENTATION",
+        "INCOMPLETE_EXP_DOCUMENTATION"
+      ]
+    },
+    "headerNotes": {
+      "previousDocuments": "NONE",
+      "exportFromEU": "AT_LEAST_ONE_OF"
+    }
+  },
+  "9": {
+    "subColumns": 1,
+    "values": {
+      "importProcedure": "IMMEDIATE_RELEASE_VOEC",
+      "outgoingProcedure": "TRE",
+      "hasOutgoingProcedure": true,
+      "referenceNumber": true,
+      "typeOfReference": "N820",
+      "declarantNumber": false,
+      "declarationDate": false,
+      "sequenceNumber": false,
+      "exportId": true,
+      "typeOfExport": ["AES_EXPORT", "EUEIR_EXPORT", "EIDR_EXPORT"],
+      "value": true,
+      "numberOfItems": true,
+      "harmonizedSystemSubheadingCode": true,
+      "vatIdentificationNumber": true,
+      "incompleteDocumentationReason": [
+        "INCOMPLETE_VOEC_DOCUMENTATION",
+        "INCOMPLETE_EXP_DOCUMENTATION",
+        "INCOMPLETE_TRA_DOCUMENTATION"
+      ]
+    },
+    "headerNotes": {
+      "previousDocuments": "ONE_OF",
+      "exportFromEU": "AT_LEAST_ONE_OF"
+    }
+  },
+  "10": {
+    "subColumns": 1,
+    "values": {
+      "importProcedure": "IMMEDIATE_RELEASE_VOEC",
+      "outgoingProcedure": "TRA",
+      "hasOutgoingProcedure": true,
+      "referenceNumber": true,
+      "typeOfReference": "N820",
+      "declarantNumber": false,
+      "declarationDate": false,
+      "sequenceNumber": false,
+      "exportId": false,
+      "typeOfExport": null,
+      "value": true,
+      "numberOfItems": true,
+      "harmonizedSystemSubheadingCode": true,
+      "vatIdentificationNumber": true,
+      "incompleteDocumentationReason": [
+        "INCOMPLETE_VOEC_DOCUMENTATION",
+        "INCOMPLETE_TRA_DOCUMENTATION"
+      ]
+    },
+    "headerNotes": {
+      "previousDocuments": "ONE_OF",
+      "exportFromEU": "NONE"
+    }
+  },
+  "11": {
+    "subColumns": 1,
+    "values": {
+      "importProcedure": "WAREHOUSE_RELEASE",
+      "outgoingProcedure": "-",
+      "hasOutgoingProcedure": false,
+      "referenceNumber": false,
+      "typeOfReference": "CUDE",
+      "declarantNumber": true,
+      "declarationDate": true,
+      "sequenceNumber": true,
+      "exportId": false,
+      "typeOfExport": null,
+      "incompleteDocumentationReason": ["INCOMPLETE_DOCUMENTATION"]
+    },
+    "headerNotes": {
+      "previousDocuments": "ONE_OF",
+      "exportFromEU": "NONE"
+    }
+  },
+  "12": {
+    "subColumns": 1,
+    "values": {
+      "importProcedure": "WAREHOUSE_RELEASE",
+      "outgoingProcedure": "EXP",
+      "hasOutgoingProcedure": true,
+      "referenceNumber": false,
+      "typeOfReference": "CUDE",
+      "declarantNumber": true,
+      "declarationDate": true,
+      "sequenceNumber": true,
+      "exportId": true,
+      "typeOfExport": ["AES_EXPORT", "EUEIR_EXPORT", "EIDR_EXPORT"],
+      "incompleteDocumentationReason": ["INCOMPLETE_DOCUMENTATION", "INCOMPLETE_EXP_DOCUMENTATION"]
+    },
+    "headerNotes": {
+      "previousDocuments": "ONE_OF",
+      "exportFromEU": "AT_LEAST_ONE_OF"
+    }
+  },
+  "13": {
+    "subColumns": 2,
+    "values": {
+      "importProcedure": "WAREHOUSE_RELEASE",
+      "outgoingProcedure": "TRE",
+      "hasOutgoingProcedure": true,
+      "referenceNumber": [false, true],
+      "typeOfReference": ["CUDE", "N820"],
+      "declarantNumber": [true, false],
+      "declarationDate": [true, false],
+      "sequenceNumber": [true, false],
+      "exportId": true,
+      "typeOfExport": ["AES_EXPORT", "EUEIR_EXPORT", "EIDR_EXPORT"],
+      "incompleteDocumentationReason": [
+        "INCOMPLETE_DOCUMENTATION",
+        "INCOMPLETE_EXP_DOCUMENTATION",
+        "INCOMPLETE_TRA_DOCUMENTATION"
+      ]
+    },
+    "headerNotes": {
+      "previousDocuments": ["ONE_OF", "AND_ONE_OF"],
+      "exportFromEU": "AT_LEAST_ONE_OF"
+    }
+  },
+  "14": {
+    "subColumns": 2,
+    "values": {
+      "importProcedure": "WAREHOUSE_RELEASE",
+      "outgoingProcedure": "TRA",
+      "hasOutgoingProcedure": true,
+      "referenceNumber": [false, true],
+      "typeOfReference": ["CUDE", "N820"],
+      "declarantNumber": [true, false],
+      "declarationDate": [true, false],
+      "sequenceNumber": [true, false],
+      "exportId": false,
+      "typeOfExport": null,
+      "incompleteDocumentationReason": ["INCOMPLETE_DOCUMENTATION", "INCOMPLETE_TRA_DOCUMENTATION"]
+    },
+    "headerNotes": {
+      "previousDocuments": ["ONE_OF", "AND_ONE_OF"],
+      "exportFromEU": "NONE"
+    }
+  },
+  "15": {
+    "subColumns": 1,
+    "values": {
+      "importProcedure": "COLLECTIVE_RELEASE",
+      "outgoingProcedure": "-",
+      "hasOutgoingProcedure": false,
+      "referenceNumber": false,
+      "typeOfReference": null,
+      "declarantNumber": false,
+      "declarationDate": false,
+      "sequenceNumber": false,
+      "exportId": false,
+      "typeOfExport": null,
+      "incompleteDocumentationReason": []
+    },
+    "headerNotes": {
+      "previousDocuments": "NONE",
+      "exportFromEU": "NONE"
+    }
+  },
+  "16": {
+    "subColumns": 1,
+    "values": {
+      "importProcedure": "COLLECTIVE_RELEASE",
+      "outgoingProcedure": "EXP",
+      "hasOutgoingProcedure": true,
+      "referenceNumber": false,
+      "typeOfReference": null,
+      "declarantNumber": false,
+      "declarationDate": false,
+      "sequenceNumber": false,
+      "exportId": true,
+      "typeOfExport": ["AES_EXPORT", "EUEIR_EXPORT", "EIDR_EXPORT"],
+      "incompleteDocumentationReason": ["INCOMPLETE_EXP_DOCUMENTATION"]
+    },
+    "headerNotes": {
+      "previousDocuments": "NONE",
+      "exportFromEU": "AT_LEAST_ONE_OF"
+    }
+  },
+  "17": {
+    "subColumns": 1,
+    "values": {
+      "importProcedure": "COLLECTIVE_RELEASE",
+      "outgoingProcedure": "TRE",
+      "hasOutgoingProcedure": true,
+      "referenceNumber": true,
+      "typeOfReference": "N820",
+      "declarantNumber": false,
+      "declarationDate": false,
+      "sequenceNumber": false,
+      "exportId": true,
+      "typeOfExport": ["AES_EXPORT", "EUEIR_EXPORT", "EIDR_EXPORT"],
+      "incompleteDocumentationReason": [
+        "INCOMPLETE_EXP_DOCUMENTATION",
+        "INCOMPLETE_TRA_DOCUMENTATION"
+      ]
+    },
+    "headerNotes": {
+      "previousDocuments": "AND_ONE_OF",
+      "exportFromEU": "AT_LEAST_ONE_OF"
+    }
+  },
+  "18": {
+    "subColumns": 1,
+    "values": {
+      "importProcedure": "COLLECTIVE_RELEASE",
+      "outgoingProcedure": "TRA",
+      "hasOutgoingProcedure": true,
+      "referenceNumber": true,
+      "typeOfReference": "N820",
+      "declarantNumber": false,
+      "declarationDate": false,
+      "sequenceNumber": false,
+      "exportId": false,
+      "typeOfExport": null,
+      "incompleteDocumentationReason": ["INCOMPLETE_TRA_DOCUMENTATION"]
+    },
+    "headerNotes": {
+      "previousDocuments": "AND_ONE_OF",
+      "exportFromEU": "NONE"
+    }
+  },
+  "19": {
+    "subColumns": 1,
+    "values": {
+      "importProcedure": "DOCUMENTS_NOT_OBLIGED_RELEASE",
+      "outgoingProcedure": "-",
+      "hasOutgoingProcedure": false,
+      "referenceNumber": false,
+      "typeOfReference": null,
+      "declarantNumber": false,
+      "declarationDate": false,
+      "sequenceNumber": false,
+      "exportId": true,
+      "typeOfExport": ["AES_EXPORT", "EUEIR_EXPORT", "EIDR_EXPORT"],
+      "incompleteDocumentationReason": ["INCOMPLETE_EXP_DOCUMENTATION"]
+    },
+    "headerNotes": {
+      "previousDocuments": "NONE",
+      "exportFromEU": "AT_LEAST_ONE_OF"
+    }
+  },
+  "20": {
+    "subColumns": 1,
+    "values": {
+      "importProcedure": "DOCUMENTS_NOT_OBLIGED_RELEASE",
+      "outgoingProcedure": "EXP",
+      "hasOutgoingProcedure": true,
+      "referenceNumber": false,
+      "typeOfReference": null,
+      "declarantNumber": false,
+      "declarationDate": false,
+      "sequenceNumber": false,
+      "exportId": true,
+      "typeOfExport": ["AES_EXPORT", "EUEIR_EXPORT", "EIDR_EXPORT"],
+      "incompleteDocumentationReason": ["INCOMPLETE_EXP_DOCUMENTATION"]
+    },
+    "headerNotes": {
+      "previousDocuments": "NONE",
+      "exportFromEU": "AT_LEAST_ONE_OF"
+    }
+  },
+  "21": {
+    "subColumns": 1,
+    "values": {
+      "importProcedure": "DOCUMENTS_NOT_OBLIGED_RELEASE",
+      "outgoingProcedure": "TRE",
+      "hasOutgoingProcedure": true,
+      "referenceNumber": true,
+      "typeOfReference": "N820",
+      "declarantNumber": false,
+      "declarationDate": false,
+      "sequenceNumber": false,
+      "exportId": true,
+      "typeOfExport": ["AES_EXPORT", "EUEIR_EXPORT", "EIDR_EXPORT"],
+      "incompleteDocumentationReason": [
+        "INCOMPLETE_EXP_DOCUMENTATION",
+        "INCOMPLETE_TRA_DOCUMENTATION"
+      ]
+    },
+    "headerNotes": {
+      "previousDocuments": "AND_ONE_OF",
+      "exportFromEU": "AT_LEAST_ONE_OF"
+    }
+  },
+  "22": {
+    "subColumns": 1,
+    "values": {
+      "importProcedure": "DOCUMENTS_NOT_OBLIGED_RELEASE",
+      "outgoingProcedure": "TRA",
+      "hasOutgoingProcedure": true,
+      "referenceNumber": true,
+      "typeOfReference": "N820",
+      "declarantNumber": false,
+      "declarationDate": false,
+      "sequenceNumber": false,
+      "exportId": false,
+      "typeOfExport": null,
+      "incompleteDocumentationReason": ["INCOMPLETE_TRA_DOCUMENTATION"]
+    },
+    "headerNotes": {
+      "previousDocuments": "AND_ONE_OF",
+      "exportFromEU": "NONE"
+    }
+  },
+  "23": {
+    "subColumns": 1,
+    "values": {
+      "importProcedure": "WAREHOUSE_RELEASE",
+      "outgoingProcedure": "-",
+      "hasOutgoingProcedure": false,
+      "referenceNumber": true,
+      "typeOfReference": "GONU",
+      "declarantNumber": false,
+      "declarationDate": false,
+      "sequenceNumber": false,
+      "exportId": false,
+      "typeOfExport": null,
+      "incompleteDocumentationReason": ["INCOMPLETE_DOCUMENTATION"]
+    },
+    "headerNotes": {
+      "previousDocuments": "AND_ONE_OF",
+      "exportFromEU": "NONE"
+    }
+  },
+  "24": {
+    "subColumns": 1,
+    "values": {
+      "importProcedure": "WAREHOUSE_RELEASE",
+      "outgoingProcedure": "EXP",
+      "hasOutgoingProcedure": true,
+      "referenceNumber": true,
+      "typeOfReference": "GONU",
+      "declarantNumber": false,
+      "declarationDate": false,
+      "sequenceNumber": false,
+      "exportId": true,
+      "typeOfExport": ["AES_EXPORT", "EUEIR_EXPORT", "EIDR_EXPORT"],
+      "incompleteDocumentationReason": ["INCOMPLETE_DOCUMENTATION", "INCOMPLETE_EXP_DOCUMENTATION"]
+    },
+    "headerNotes": {
+      "previousDocuments": "AND_ONE_OF",
+      "exportFromEU": "AT_LEAST_ONE_OF"
+    }
+  },
+  "25": {
+    "subColumns": 2,
+    "values": {
+      "importProcedure": "WAREHOUSE_RELEASE",
+      "outgoingProcedure": "TRA",
+      "hasOutgoingProcedure": true,
+      "referenceNumber": [true, true],
+      "typeOfReference": ["GONU", "N820"],
+      "declarantNumber": [false, false],
+      "declarationDate": [false, false],
+      "sequenceNumber": [false, false],
+      "exportId": false,
+      "typeOfExport": null,
+      "incompleteDocumentationReason": ["INCOMPLETE_DOCUMENTATION", "INCOMPLETE_TRA_DOCUMENTATION"]
+    },
+    "headerNotes": {
+      "previousDocuments": ["ONE_OF", "AND_ONE_OF"],
+      "exportFromEU": "NONE"
+    }
+  },
+  "26": {
+    "subColumns": 2,
+    "values": {
+      "importProcedure": "WAREHOUSE_RELEASE",
+      "outgoingProcedure": "TRE",
+      "hasOutgoingProcedure": true,
+      "referenceNumber": [true, true],
+      "typeOfReference": ["GONU", "N820"],
+      "declarantNumber": [false, false],
+      "declarationDate": [false, false],
+      "sequenceNumber": [false, false],
+      "exportId": true,
+      "typeOfExport": ["AES_EXPORT", "EUEIR_EXPORT", "EIDR_EXPORT"],
+      "incompleteDocumentationReason": [
+        "INCOMPLETE_DOCUMENTATION",
+        "INCOMPLETE_EXP_DOCUMENTATION",
+        "INCOMPLETE_TRA_DOCUMENTATION"
+      ]
+    },
+    "headerNotes": {
+      "previousDocuments": ["ONE_OF", "AND_ONE_OF"],
+      "exportFromEU": "AT_LEAST_ONE_OF"
+    }
+  },
+  "27": {
+    "subColumns": 1,
+    "values": {
+      "importProcedure": "ATA_CARNET",
+      "outgoingProcedure": "-",
+      "hasOutgoingProcedure": false,
+      "referenceNumber": true,
+      "typeOfReference": "N955",
+      "declarantNumber": false,
+      "declarationDate": false,
+      "sequenceNumber": false,
+      "exportId": false,
+      "typeOfExport": null,
+      "incompleteDocumentationReason": ["INCOMPLETE_DOCUMENTATION"]
+    },
+    "headerNotes": {
+      "previousDocuments": "AND_ONE_OF",
+      "exportFromEU": "NONE"
+    }
+  },
+  "28": {
+    "subColumns": 1,
+    "values": {
+      "importProcedure": "TIR_CARNET",
+      "outgoingProcedure": "-",
+      "hasOutgoingProcedure": false,
+      "referenceNumber": true,
+      "typeOfReference": "N952",
+      "declarantNumber": false,
+      "declarationDate": false,
+      "sequenceNumber": false,
+      "exportId": false,
+      "typeOfExport": null,
+      "incompleteDocumentationReason": ["INCOMPLETE_DOCUMENTATION"]
+    },
+    "headerNotes": {
+      "previousDocuments": "AND_ONE_OF",
+      "exportFromEU": "NONE"
+    }
+  },
+  "29": {
+    "subColumns": 1,
+    "values": {
+      "importProcedure": "NATO_FORM_302",
+      "outgoingProcedure": "-",
+      "hasOutgoingProcedure": false,
+      "referenceNumber": true,
+      "typeOfReference": "C624",
+      "declarantNumber": false,
+      "declarationDate": false,
+      "sequenceNumber": false,
+      "exportId": false,
+      "typeOfExport": null,
+      "incompleteDocumentationReason": ["INCOMPLETE_DOCUMENTATION"]
+    },
+    "headerNotes": {
+      "previousDocuments": "AND_ONE_OF",
+      "exportFromEU": "NONE"
+    }
+  },
+  "30": {
+    "subColumns": 1,
+    "values": {
+      "importProcedure": "CUSTOMS_DECLARATION",
+      "outgoingProcedure": "-",
+      "hasOutgoingProcedure": false,
+      "referenceNumber": false,
+      "typeOfReference": "CUDE",
+      "declarantNumber": true,
+      "declarationDate": true,
+      "sequenceNumber": true,
+      "exportId": false,
+      "typeOfExport": null,
+      "incompleteDocumentationReason": ["INCOMPLETE_DOCUMENTATION", "INCOMPLETE_CUDE_DOCUMENTATION"]
+    },
+    "headerNotes": {
+      "previousDocuments": "ONE_OF",
+      "exportFromEU": "NONE"
+    }
+  },
+  "31": {
+    "subColumns": 1,
+    "values": {
+      "importProcedure": "CUSTOMS_DECLARATION",
+      "outgoingProcedure": "EXP",
+      "hasOutgoingProcedure": true,
+      "referenceNumber": false,
+      "typeOfReference": "CUDE",
+      "declarantNumber": true,
+      "declarationDate": true,
+      "sequenceNumber": true,
+      "exportId": true,
+      "typeOfExport": ["AES_EXPORT", "EUEIR_EXPORT", "EIDR_EXPORT"],
+      "incompleteDocumentationReason": [
+        "INCOMPLETE_DOCUMENTATION",
+        "INCOMPLETE_CUDE_DOCUMENTATION",
+        "INCOMPLETE_EXP_DOCUMENTATION"
+      ]
+    },
+    "headerNotes": {
+      "previousDocuments": "ONE_OF",
+      "exportFromEU": "AT_LEAST_ONE_OF"
+    }
+  },
+  "32": {
+    "subColumns": 2,
+    "values": {
+      "importProcedure": "CUSTOMS_DECLARATION",
+      "outgoingProcedure": "TRA",
+      "hasOutgoingProcedure": true,
+      "referenceNumber": [false, true],
+      "typeOfReference": ["CUDE", "N820"],
+      "declarantNumber": [true, false],
+      "declarationDate": [true, false],
+      "sequenceNumber": [true, false],
+      "exportId": false,
+      "typeOfExport": null,
+      "incompleteDocumentationReason": [
+        "INCOMPLETE_DOCUMENTATION",
+        "INCOMPLETE_CUDE_DOCUMENTATION",
+        "INCOMPLETE_TRA_DOCUMENTATION"
+      ]
+    },
+    "headerNotes": {
+      "previousDocuments": ["ONE_OF", "AND_ONE_OF"],
+      "exportFromEU": "NONE"
+    }
+  },
+  "33": {
+    "subColumns": 2,
+    "values": {
+      "importProcedure": "CUSTOMS_DECLARATION",
+      "outgoingProcedure": "TRE",
+      "hasOutgoingProcedure": true,
+      "referenceNumber": [false, true],
+      "typeOfReference": ["CUDE", "N820"],
+      "declarantNumber": [true, false],
+      "declarationDate": [true, false],
+      "sequenceNumber": [true, false],
+      "exportId": true,
+      "typeOfExport": ["AES_EXPORT", "EUEIR_EXPORT", "EIDR_EXPORT"],
+      "incompleteDocumentationReason": [
+        "INCOMPLETE_DOCUMENTATION",
+        "INCOMPLETE_CUDE_DOCUMENTATION",
+        "INCOMPLETE_EXP_DOCUMENTATION",
+        "INCOMPLETE_TRA_DOCUMENTATION"
+      ]
+    },
+    "headerNotes": {
+      "previousDocuments": ["ONE_OF", "AND_ONE_OF"],
+      "exportFromEU": "AT_LEAST_ONE_OF"
+    }
+  }
+}

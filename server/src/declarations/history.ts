@@ -13,7 +13,8 @@ export async function forCard(id: string) {
         WHERE c.declaration_id = $1 ORDER BY c.created_at`, [id]),
     queue: await query(`SELECT q.id, q.status, q.attempts, q.next_try_at, q.last_error, q.adapter, q.queued_at, q.finished_at, v.version_no FROM send_queue q
         JOIN declaration_version v ON v.id = q.version_id WHERE q.declaration_id = $1 ORDER BY q.queued_at DESC LIMIT 10`, [id]),
-    workflow: { fourEyes: await fourEyes() }
+    workflow: { fourEyes: await fourEyes() },
+    digitoll: await one(`SELECT id, status, mrn, doc_number FROM digitoll_house WHERE declaration_id = $1 AND status <> 'CANCELLED' ORDER BY created_at DESC LIMIT 1`, [id])
   };
 }
 

@@ -1,5 +1,5 @@
 import type pg from 'pg';
-import { one, pool, query } from '../db.js';
+import { one, pool, query, tx } from '../db.js';
 import { audit } from '../audit.js';
 import { fail } from '../errors.js';
 import * as sim from './simulator.js';
@@ -75,14 +75,16 @@ async function runJob(j: any) {
     } catch (e) { await c.query('ROLLBACK'); throw e; } finally { c.release(); }
   } catch (e: any) {
     const attempts = j.attempts + 1, message = String(e?.message ?? e).slice(0, 500);
-    if (e?.permanent || attempts > RETRY.length) {
-      await pool.query("UPDATE send_queue SET status = 'FAILED', last_error = $2, finished_at = now() WHERE id = $1", [j.id, message]);
-      await pool.query("UPDATE declaration SET status = 'APPROVED', updated_at = now() WHERE id = $1 AND status = 'SENT'", [j.declaration_id]);
-      await audit(null, { action: 'TVINN_SEND_FAILED', objectType: 'DECLARATION', objectId: j.declaration_id, detail: { job: j.id, attempts, error: message } });
-    } else {
-      await pool.query("UPDATE send_queue SET status = 'QUEUED', last_error = $2, next_try_at = now() + make_interval(secs => $3) WHERE id = $1", [j.id, message, RETRY[attempts - 1]]);
-      await pool.query("UPDATE declaration SET status = 'APPROVED' WHERE id = $1 AND status = 'SENT'", [j.declaration_id]);
-    }
+    // The job and the declaration change together, so nobody ever sees one without the other.
+    await tx(async c => {
+      await c.query("UPDATE declaration SET status = 'APPROVED', updated_at = now() WHERE id = $1 AND status = 'SENT'", [j.declaration_id]);
+      if (e?.permanent || attempts > RETRY.length) {
+        await c.query("UPDATE send_queue SET status = 'FAILED', last_error = $2, finished_at = now() WHERE id = $1", [j.id, message]);
+        await audit(null, { action: 'TVINN_SEND_FAILED', objectType: 'DECLARATION', objectId: j.declaration_id, detail: { job: j.id, attempts, error: message } }, c);
+      } else {
+        await c.query("UPDATE send_queue SET status = 'QUEUED', last_error = $2, next_try_at = now() + make_interval(secs => $3) WHERE id = $1", [j.id, message, RETRY[attempts - 1]]);
+      }
+    });
   }
 }
 
