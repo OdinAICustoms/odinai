@@ -1001,5 +1001,35 @@ export const EN: Record<string, string> = {
   'Oppgi hvorfor fakturaen krediteres.': 'State why the invoice is credited.', 'Bare en utstedt faktura som ikke er kreditert, kan krediteres.': 'Only an issued invoice that has not been credited can be credited.',
   'En eller flere av linjene er allerede kreditert eller hører ikke til fakturaen.': 'One or more of the lines have already been credited or do not belong to the invoice.',
   'Alle linjene er allerede kreditert.': 'All the lines have already been credited.', 'Den lagrede PDF-en besto ikke integritetskontrollen.': 'The stored PDF failed the integrity check.',
+  /* Payments, EHF and Fiken (phase 4c) */
+  'Se Fiken-køen': 'See the Fiken queue', 'sending til Fiken har feilet.': 'transfer to Fiken has failed.', 'sendinger til Fiken har feilet.': 'transfers to Fiken have failed.',
+  'EHF ikke mulig': 'EHF not possible', 'EHF (XML)': 'EHF (XML)', 'Innbetalinger': 'Payments', 'Måte': 'Method', 'Registrert av': 'Registered by', 'Reversert': 'Reversed',
+  'Hvorfor skal innbetalingen reverseres?': 'Why is the payment to be reversed?', 'Innbetalingen er reversert.': 'The payment has been reversed.', 'Reverser': 'Reverse',
+  'Ingen innbetalinger registrert.': 'No payments registered.', 'Innbetalingen er registrert.': 'The payment has been registered.', 'Betalt dato': 'Date paid',
+  'f.eks. arkivreferanse': 'e.g. archive reference', 'Registrer': 'Register', '+ Registrer innbetaling': '+ Register payment',
+  'Innbetalinger registreres for hånd til banken kobles til når OdinAi er i drift. En feil innbetaling reverseres med en årsak; den slettes aldri.':
+    'Payments are registered by hand until the bank is connected when OdinAi goes live. A wrong payment is reversed with a reason; it is never deleted.',
+  'Sendes på nytt.': 'Sending again.', 'Sender til Fiken': 'Sends to Fiken', 'Simulator — ingenting sendes': 'Simulator — nothing is sent', 'feilet': 'failed', 'venter': 'waiting',
+  'Hver utstedte faktura og kreditnota føres i Fiken som «Annet salg» med OdinAi sitt fakturanummer; innbetalinger føres på salget. Kontoene og mva-typene under må regnskapsføreren bekrefte. API-nøkkelen (FIKEN_TOKEN) ligger i .env og vises aldri her.':
+    'Every issued invoice and credit note is entered in Fiken as "Other sale" (Annet salg) with the OdinAi invoice number; payments are entered on the sale. The accountant must confirm the accounts and VAT types below. The API key (FIKEN_TOKEN) is in .env and is never shown here.',
+  'Selskapets navn i Fiken (slug)': 'Company name in Fiken (slug)', 'Bankkonto for innbetalinger': 'Bank account for payments', 'Send til Fiken av seg selv': 'Send to Fiken automatically',
+  'Mva-kode i OdinAi': 'VAT code in OdinAi', 'Konto i Fiken': 'Account in Fiken', 'Mva-type i Fiken': 'VAT type in Fiken', 'Det som manglet, er lagt i køen.': 'What was missing has been queued.',
+  'Send det som mangler i Fiken': 'Send what Fiken is missing', 'Fiken-køen': 'The Fiken queue', 'Hva': 'What', 'Melding': 'Message', 'Tid': 'Time',
+  'Hvorfor avbrytes jobben (f.eks. ført for hånd i Fiken)?': 'Why is the job cancelled (e.g. entered by hand in Fiken)?', 'Avbrutt.': 'Cancelled.', 'Ingenting sendt ennå.': 'Nothing sent yet.',
+  'Salg': 'Sale', 'Innbetaling': 'Payment', 'Reversering': 'Reversal', 'Oppgjort': 'Settled', 'Bank': 'Bank', 'Sender': 'Sending',
+  'bankkonto for innbetalinger': 'bank account for payments', 'selskapets navn i Fiken (slug)': 'company name in Fiken (slug)', 'FIKEN_TOKEN i .env': 'FIKEN_TOKEN in .env',
+  'fakturaen er ikke utstedt': 'the invoice has not been issued', 'klienten har ikke norsk organisasjonsnummer': 'the client has no Norwegian organisation number', 'klienten mangler adresse': 'the client has no address',
+  'Beløpet må være større enn null.': 'The amount must be greater than zero.', 'Ugyldig betalingsdato.': 'Invalid payment date.', 'Betalingsdatoen kan ikke være frem i tid.': 'The payment date cannot be in the future.',
+  'Innbetalinger registreres på utstedte fakturaer som ikke er kreditert.': 'Payments are registered on issued invoices that have not been credited.',
+  'Oppgi hvorfor innbetalingen reverseres.': 'State why the payment is reversed.', 'Fant ikke innbetalingen.': 'Payment not found.', 'Innbetalingen er allerede reversert.': 'The payment has already been reversed.',
+  'Selskapets navn i Fiken (slug) har bare små bokstaver, tall og bindestrek, f.eks. odin-customs-as.': 'The company name in Fiken (slug) has only lower-case letters, digits and hyphens, e.g. odin-customs-as.',
+  'Bankkontoen i Fiken skrives som 1920:10001.': 'The bank account in Fiken is written as 1920:10001.', 'Betalt i sin helhet.': 'Paid in full.',
+  'Peppol BIS Billing 3.0. Sending skjer via aksesspunkt når OdinAi er i drift; la aksesspunktet validere den første (utlegg er kategori E).':
+    'Peppol BIS Billing 3.0. Sending goes through an access point once OdinAi is live; let the access point validate the first one (outlays are category E).',
+  'Oppgi hvorfor jobben avbrytes (f.eks. ført for hånd i Fiken).': 'State why the job is cancelled (e.g. entered by hand in Fiken).',
+  'Bankkontoen for innbetalinger i Fiken mangler (f.eks. 1920:10001). Fyll den ut under Fakturering › Innstillinger.': 'The bank account for payments in Fiken is missing (e.g. 1920:10001). Fill it in under Invoicing › Settings.',
+  'Fakturaen er ikke sendt til Fiken ennå. Send salget først.': 'The invoice has not been sent to Fiken yet. Send the sale first.',
+  'Fiken er ikke satt opp: FIKEN_TOKEN i .env og selskapets navn i Fiken (slug) under Fakturering › Innstillinger.': 'Fiken is not set up: FIKEN_TOKEN in .env and the company name in Fiken (slug) under Invoicing › Settings.',
+  'Avbrutt under sending. Kontroller i Fiken før du prøver igjen.': 'Interrupted while sending. Check in Fiken before you try again.', 'Reversert før sending': 'Reversed before sending',
   'Utkastet har ingen linjer.': 'The draft has no lines.', 'Fakturaens PDF er en del av den utstedte fakturaen og kan ikke fjernes.': 'The invoice PDF is part of the issued invoice and cannot be removed.'
 };

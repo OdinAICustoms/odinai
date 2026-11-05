@@ -15,7 +15,7 @@ Requirements and design: the OdinAi requirements document (Claude Docs). Built o
 | 1 | Business partners, products, RT permits, data from ODIN LINK | Done (move: `npm run import:odinlink -w server`, dry run unless `-- --commit`) |
 | 2 | AI import declarations, review, approval, TVINN simulator | Done: declaration, calculation (checked against two accepted Proteria declarations), AI intake, four-eyes approval, TVINN simulator and send queue. Left for later: release e-mail to the client (needs SMTP) and the real AI trial |
 | 3 | Export and Digitoll | Done: export declarations, Digitoll road (transport, master, house) on the simulator |
-| 4 | Invoicing (prices per client, KID, bank API, Fiken) | 4a done: invoice basis, drafts, issuing with number series and KID, credit notes, PDF. Next: 4b payments from the bank, 4c EHF and Fiken |
+| 4 | Invoicing (prices per client, KID, bank API, Fiken) | Done: invoice basis, drafts, issuing with number series and KID, credit notes, PDF, payments by hand, EHF (XML), Fiken (simulator). Waits for go-live: bank integration, EHF sending through an access point, the live Fiken token |
 | 5 | Online, Tolletaten test period, go-live | |
 
 ## Run it on this PC
@@ -59,6 +59,13 @@ credit notes), sets the KID (client number + invoice number + MOD10), the due da
 invoice — the database refuses changes and deletes. A credit note credits whole lines; when every line is
 credited, the declarations go back to the basis. Fill in the company details and account number under
 Fakturering › Innstillinger before the first invoice is issued.
+
+Until the bank is connected (at go-live), payments are registered by hand on the invoice; a wrong one is
+reversed with a reason, never deleted. Every issued invoice and credit note can be downloaded as EHF
+(Peppol BIS Billing 3.0); sending goes through an access point from go-live. Invoices, credit notes and
+payments are sent to Fiken as "Annet salg" through an outbox (`server/src/invoicing/fiken.ts`):
+`FIKEN_ADAPTER=simulator` by default, `live` with `FIKEN_TOKEN` in `.env` and the company slug, accounts
+and VAT types under Fakturering › Innstillinger (to be confirmed by the accountant).
 
 ## Reference data
 

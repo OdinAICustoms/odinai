@@ -90,25 +90,34 @@ export function priceLine(l: { quantity: number | string; unit_price: number | s
   return { amount, vat_code: code, vat_rate: rate, vat_amount: r2(amount * rate / 100) };
 }
 
-/** Invoice totals from its live lines; the deposit is set off against the amount to pay. */
-export function totals(lines: { amount: number | string; vat_amount: number | string; vat_code: string }[], depositApplied = 0) {
-  const net = r2(lines.filter(l => l.vat_code !== 'OUTLAY').reduce((s, l) => s + num(l.amount), 0));
-  const outlay = r2(lines.filter(l => l.vat_code === 'OUTLAY').reduce((s, l) => s + num(l.amount), 0));
-  const vat = r2(lines.reduce((s, l) => s + num(l.vat_amount), 0));
-  return { net_total: net, vat_total: vat, outlay_total: outlay, deposit_applied: r2(depositApplied), total: r2(net + vat + outlay - depositApplied) };
-}
+type VatLine = { amount: number | string; vat_amount: number | string; vat_code: string; vat_rate: number | string };
 
-/** VAT summary for the printed invoice: per rate, the base and the VAT. */
-export function vatSummary(lines: { amount: number | string; vat_amount: number | string; vat_code: string; vat_rate: number | string }[]) {
+/**
+ * VAT per rate: the base of all lines with that code and rate, times the rate, rounded once. This is
+ * how the printed invoice, EHF (BR-CO-17) and Fiken see it; a line's own VAT is only informative.
+ */
+export function vatSummary(lines: VatLine[]) {
   const out = new Map<string, { code: string; rate: number; base: number; vat: number }>();
   for (const l of lines) {
     const k = `${l.vat_code}:${num(l.vat_rate)}`;
     const e = out.get(k) ?? { code: l.vat_code, rate: num(l.vat_rate), base: 0, vat: 0 };
-    e.base = r2(e.base + num(l.amount)); e.vat = r2(e.vat + num(l.vat_amount));
+    e.base = r2(e.base + num(l.amount));
     out.set(k, e);
   }
+  for (const e of out.values()) e.vat = r2(e.base * e.rate / 100);
   return [...out.values()].sort((a, b) => b.rate - a.rate || a.code.localeCompare(b.code));
 }
+
+/** Invoice totals from its live lines; the deposit is set off against the amount to pay. */
+export function totals(lines: VatLine[], depositApplied = 0) {
+  const net = r2(lines.filter(l => l.vat_code !== 'OUTLAY').reduce((s, l) => s + num(l.amount), 0));
+  const outlay = r2(lines.filter(l => l.vat_code === 'OUTLAY').reduce((s, l) => s + num(l.amount), 0));
+  const vat = r2(vatSummary(lines).reduce((s, v) => s + v.vat, 0));
+  return { net_total: net, vat_total: vat, outlay_total: outlay, deposit_applied: r2(depositApplied), total: r2(net + vat + outlay - depositApplied) };
+}
+
+/** Øre (Fiken counts in cents). */
+export const ore = (n: number | string) => Math.round(num(n) * 100);
 
 /** KID: client number (6) + invoice number (7) + a MOD10 (Luhn) check digit. */
 export function kid(partnerNo: string, invoiceNo: number | string) {

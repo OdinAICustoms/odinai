@@ -15,6 +15,11 @@ const PAYER: Record<string, string> = { ODIN: 'Odin betalte', CLIENT: 'Klienten 
 const VAT: Record<string, string> = { HIGH: '25 %', ZERO: '0 % (fritatt)', EXEMPT: 'Utenfor mva', OUTLAY: 'Utlegg' };
 const UNIT: Record<string, string> = { PER_DECL: 'per deklarasjon', PER_LINE: 'per varepost', PER_HOUR: 'per time', FIXED: 'fast', PERCENT_DUTY: '% av toll og avgifter' };
 const CONS: Record<string, string> = { PER_DECLARATION: 'Per deklarasjon', MONTHLY: 'Månedlig' };
+const JOB_KIND: Record<string, string> = { SALE: 'Salg', PAYMENT: 'Innbetaling', PAYMENT_REVERSAL: 'Reversering', SETTLE: 'Oppgjort' };
+const JOB: Record<string, [string, string]> = { QUEUED: ['Venter', 'submitted'], SENDING: ['Sender', 'submitted'], DONE: ['Sendt', 'accepted'], FAILED: ['Feilet', 'rejected'], CANCELLED: ['Avbrutt', 'cancelled'] };
+const jobPill = (s: string) => <span className={`pill ${JOB[s]?.[1] ?? ''}`}>{T(JOB[s]?.[0] ?? s)}</span>;
+const METHOD: Record<string, string> = { BANK: 'Bank', CASH: 'Kontant', OTHER: 'Annet' };
+const osloToday = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Oslo' });
 const go = (nav: (p: string) => void, p: string) => (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); nav(p); };
 
 function Gaps({ gaps, nav }: { gaps: string[]; nav: (p: string) => void }) {
@@ -106,6 +111,7 @@ export function InvoiceList({ me }: { me: Me }) {
       {newFor && <div className="subform"><label htmlFor="newinv">{T('Klient')}</label><PartnerPicker id="newinv" onPick={id => create(id)} placeholder={T('Søk etter klient')} />
         <p className="hint">{T('For timer og annet arbeid. Linjene legges til på utkastet.')}</p></div>}
       {err && <div className="err">{T(err)}</div>}
+      {sum?.fikenFailed > 0 && <div className="warnmsg">{sum.fikenFailed} {T(sum.fikenFailed === 1 ? 'sending til Fiken har feilet.' : 'sendinger til Fiken har feilet.')} <a href="/invoice-settings" onClick={go(nav, '/invoice-settings')}>{T('Se Fiken-køen')}</a></div>}
       <div className="tabs" role="tablist">{TABS.map(([k, l]) => <button key={k} type="button" role="tab" aria-selected={status === k} className={status === k ? 'on' : ''} onClick={() => setStatus(k)}>
         {T(l)}{count(k) != null && <span className="c">{count(k)}</span>}</button>)}</div>
       <div className="tblwrap"><table className="t">
@@ -127,7 +133,7 @@ export function InvoiceCard({ me }: { me: Me }) {
   const nav = useNavigate();
   const [inv, setInv] = useState<any>(null), [meta, setMeta] = useState<any>(null), [err, setErr] = useState(''), [ok, setOk] = useState('');
   const [edit, setEdit] = useState<any>(null), [add, setAdd] = useState<any>(null), [head, setHead] = useState<any>(null);
-  const [sel, setSel] = useState<Set<string>>(new Set()), [reason, setReason] = useState('');
+  const [sel, setSel] = useState<Set<string>>(new Set()), [reason, setReason] = useState(''), [pay, setPay] = useState<any>(null);
   const take = (x: any) => { setInv(x); setHead({ your_ref: x.your_ref ?? '', note: x.note ?? '', delivery_from: x.delivery_from ?? '', delivery_to: x.delivery_to ?? '' }); setEdit(null); setSel(new Set()); };
   const load = () => api(`/invoices/${id}`).then(take).catch(e => setErr(e.message));
   useEffect(() => { setErr(''); setOk(''); load(); }, [id]);
@@ -162,6 +168,8 @@ export function InvoiceCard({ me }: { me: Me }) {
         <div className="pills">{pill(inv)}{inv.kid && <span className="chip mono">KID {inv.kid}</span>}{inv.consolidation === 'MONTHLY' && <span className="chip">{T('Månedlig')}</span>}</div>
         <span className="spacer" />
         <a className="btn grey" href={pdfUrl} target="_blank" rel="noreferrer">{T(inv.status === 'DRAFT' ? 'Forhåndsvis PDF' : 'PDF')}</a>
+        {inv.ehfBlocked && (inv.ehfBlocked.length ? <span className="chip" title={inv.ehfBlocked.map((g: string) => T(g)).join(', ')}>{T('EHF ikke mulig')}</span>
+          : <a className="btn grey" href={`/api/invoices/${inv.id}/ehf`} title={T('Peppol BIS Billing 3.0. Sending skjer via aksesspunkt når OdinAi er i drift; la aksesspunktet validere den første (utlegg er kategori E).')}>{T('EHF (XML)')}</a>)}
         <button className="btn grey" type="button" onClick={() => nav('/invoices')}>← {T('Fakturaer')}</button>
       </div>
       {inv.status === 'DRAFT' && (canEdit || canIssue) && <div className={`wfbar ${inv.warnings.length ? 'warn' : ''}`}>
@@ -171,7 +179,7 @@ export function InvoiceCard({ me }: { me: Me }) {
       </div>}
       {inv.status !== 'DRAFT' && inv.status !== 'DISCARDED' && <div className={`wfbar ${inv.display === 'OVERDUE' ? 'bad' : inv.display === 'PAID' || inv.display === 'CREDITED' ? 'ok' : ''}`}>
         <div className="wftext">{T('Utstedt')} {fmtDate(inv.issue_date)}{inv.issued_by_name ? ` ${T('av')} ${inv.issued_by_name}` : ''}.
-          {inv.kind === 'INVOICE' && inv.status === 'ISSUED' && <> {T('Forfall')} {fmtDate(inv.due_date)} · {T('åpent')} {money(inv.open)} kr.</>}
+          {inv.kind === 'INVOICE' && inv.status === 'ISSUED' && (inv.display === 'PAID' ? <> {T('Betalt i sin helhet.')}</> : <> {T('Forfall')} {fmtDate(inv.due_date)} · {T('åpent')} {money(inv.open)} kr.</>)}
           {inv.status === 'CREDITED' && <> {T('Hele fakturaen er kreditert.')}</>}
           {inv.kind === 'CREDIT' && inv.credits && <> {T('Krediterer faktura')} <a href={`/invoices/${inv.credits.id}`} onClick={go(nav, `/invoices/${inv.credits.id}`)}>{inv.credits.invoice_no}</a>{inv.credit_reason ? ` — ${inv.credit_reason}` : ''}.</>}</div>
       </div>}
@@ -230,6 +238,32 @@ export function InvoiceCard({ me }: { me: Me }) {
             <div className="row"><button className="btn" type="submit">{T('Lagre')}</button></div>
           </form>}
 
+          {inv.kind === 'INVOICE' && ['ISSUED', 'CREDITED'].includes(inv.status) && <div className="panelbox"><h3>{T('Innbetalinger')}</h3>
+            {inv.payments.length > 0 && <div className="tblwrap"><table className="t">
+              <thead><tr><th>{T('Dato')}</th><th className="num">{T('Beløp')}</th><th>{T('Måte')}</th><th>{T('Referanse')}</th><th>{T('Registrert av')}</th><th /></tr></thead>
+              <tbody>{inv.payments.map((p: any) => <tr key={p.id} className={p.reversed_at ? 'inactive' : ''}>
+                <td className="nowrap">{fmtDate(p.paid_date)}</td><td className="num nowrap">{p.reversed_at ? <s>{money(p.amount)}</s> : money(p.amount)}</td>
+                <td>{T(METHOD[p.method] ?? p.method)}</td><td>{p.reference ?? ''}{p.note && <div className="muted">{p.note}</div>}</td>
+                <td className="muted">{p.created_by_name ?? ''}{p.reversed_at && <div>{T('Reversert')} {fmtDateTime(p.reversed_at)}: {p.reversal_reason}</div>}</td>
+                <td>{!p.reversed_at && me.perms.includes('invoice.edit') && <button type="button" className="linkbtn" onClick={() => {
+                  const why = window.prompt(T('Hvorfor skal innbetalingen reverseres?'));
+                  if (why?.trim()) act(() => api(`/invoices/${inv.id}/payments/${p.id}/reverse`, { body: { reason: why } }), T('Innbetalingen er reversert.'));
+                }}>{T('Reverser')}</button>}</td></tr>)}</tbody></table></div>}
+            {!inv.payments.length && <p className="muted" style={{ marginTop: 0 }}>{T('Ingen innbetalinger registrert.')}</p>}
+            {inv.status === 'ISSUED' && inv.open > 0 && me.perms.includes('invoice.edit') && (pay
+              ? <form className="subform" onSubmit={async e => { e.preventDefault(); if (await act(() => api(`/invoices/${inv.id}/payments`, { body: { ...pay, amount: String(pay.amount).replace(',', '.') } }), T('Innbetalingen er registrert.'))) setPay(null); }}>
+                <div className="formgrid">
+                  <div><label htmlFor="py-amt">{T('Beløp')}</label><input id="py-amt" inputMode="decimal" value={pay.amount} onChange={e => setPay({ ...pay, amount: e.target.value })} /></div>
+                  <div><label htmlFor="py-date">{T('Betalt dato')}</label><input id="py-date" type="date" value={pay.paid_date} max={osloToday()} onChange={e => setPay({ ...pay, paid_date: e.target.value })} /></div>
+                  <div><label htmlFor="py-m">{T('Måte')}</label><select id="py-m" value={pay.method} onChange={e => setPay({ ...pay, method: e.target.value })}>{Object.keys(METHOD).map(k => <option key={k} value={k}>{T(METHOD[k])}</option>)}</select></div>
+                  <div><label htmlFor="py-ref">{T('Referanse')}</label><input id="py-ref" value={pay.reference} onChange={e => setPay({ ...pay, reference: e.target.value })} placeholder={T('f.eks. arkivreferanse')} /></div>
+                </div>
+                <div className="row"><button className="btn" type="submit">{T('Registrer')}</button><button className="btn grey" type="button" onClick={() => setPay(null)}>{T('Avbryt')}</button></div>
+              </form>
+              : <button className="btn ghost small" type="button" onClick={() => setPay({ amount: String(inv.open), paid_date: osloToday(), method: 'BANK', reference: '' })}>{T('+ Registrer innbetaling')}</button>)}
+            <p className="hint">{T('Innbetalinger registreres for hånd til banken kobles til når OdinAi er i drift. En feil innbetaling reverseres med en årsak; den slettes aldri.')}</p>
+          </div>}
+
           {creditable && <div className="panelbox"><h3>{T('Krediter')}</h3>
             <p className="hint" style={{ marginTop: 0 }}>{T('Velg linjer i tabellen for å kreditere bare dem. Uten valg krediteres alle linjer som ikke er kreditert, og deklarasjonene går tilbake til fakturagrunnlaget.')}</p>
             <div className="row" style={{ marginTop: 0 }}>
@@ -263,6 +297,10 @@ export function InvoiceCard({ me }: { me: Me }) {
               <a href={`/${d.direction === 'EXPORT' ? 'exports' : 'declarations'}/${d.id}`} onClick={go(nav, `/${d.direction === 'EXPORT' ? 'exports' : 'declarations'}/${d.id}`)} className="mono">{d.decl_no}</a> <span className="muted">{fmtDate(d.decl_date)}</span>
               {d.released_at && <span className="muted"> · {T('tatt av')}</span>}
               {canEdit && !d.released_at && <button type="button" className="linkbtn" onClick={() => act(() => api(`/invoices/${inv.id}/declarations/${d.id}/remove`, { body: { version: inv.version } }), T('Deklarasjonen er tatt av utkastet.'))}>{T('Ta av')}</button>}</li>)}</ul></div>}
+          {inv.fiken.length > 0 && <div className="panelbox"><h3>Fiken</h3><ul className="comments">
+            {inv.fiken.map((j: any) => <li key={j.id}>{T(JOB_KIND[j.kind] ?? j.kind)} {jobPill(j.status)} <span className="muted">{fmtDateTime(j.finished_at ?? j.queued_at)}{j.adapter === 'simulator' ? ` · ${T('simulator')}` : ''}</span>
+              {j.last_error && <div className={j.status === 'FAILED' ? 'fmsg err' : 'muted'}>{T(j.last_error)}</div>}
+              {j.status === 'FAILED' && canIssue && <button type="button" className="linkbtn" onClick={() => act(async () => { await api(`/invoicing/fiken/${j.id}/retry`, { body: {} }); return api(`/invoices/${inv.id}`); }, T('Sendes på nytt.'))}>{T('Prøv igjen')}</button>}</li>)}</ul></div>}
           {inv.creditNotes.length > 0 && <div className="panelbox"><h3>{T('Kreditnotaer')}</h3><ul className="comments">
             {inv.creditNotes.map((c: any) => <li key={c.id}><a href={`/invoices/${c.id}`} onClick={go(nav, `/invoices/${c.id}`)} className="mono">{c.invoice_no}</a> <span className="muted">{fmtDate(c.issue_date)} · {money(c.total)}</span>
               {c.credit_reason && <div className="muted">{c.credit_reason}</div>}</li>)}</ul></div>}
@@ -278,8 +316,9 @@ const COMPANY: [string, string, string?][] = [['name', 'Firmanavn'], ['orgNo', '
 export function InvoiceSettings({ me }: { me: Me }) {
   const nav = useNavigate();
   const [s, setS] = useState<any>(null), [items, setItems] = useState<any[]>([]), [nextNo, setNextNo] = useState(''), [err, setErr] = useState(''), [ok, setOk] = useState('');
-  const [gaps, setGaps] = useState<string[]>([]);
-  const load = () => api('/invoicing/meta').then(m => { setS(m.settings); setItems(m.priceItems.map((x: any) => ({ ...x, price: String(Number(x.price)), free_lines: x.free_lines ?? '' }))); setGaps(m.gaps); setNextNo(''); }).catch(e => setErr(e.message));
+  const [gaps, setGaps] = useState<string[]>([]), [fk, setFk] = useState<any>(null), [fs, setFs] = useState<any>(null);
+  const loadFiken = () => api('/invoicing/fiken').then(o => { setFk(o); setFs(o.settings); }).catch(e => setErr(e.message));
+  const load = () => { loadFiken(); return api('/invoicing/meta').then(m => { setS(m.settings); setItems(m.priceItems.map((x: any) => ({ ...x, price: String(Number(x.price)), free_lines: x.free_lines ?? '' }))); setGaps(m.gaps); setNextNo(''); }).catch(e => setErr(e.message)); };
   useEffect(() => { load(); }, []);
   if (!s) return err ? <div className="err">{T(err)}</div> : <p className="muted">{T('Laster …')}</p>;
   const can = me.perms.includes('invoice.issue');
@@ -294,6 +333,7 @@ export function InvoiceSettings({ me }: { me: Me }) {
     catch (x) { setErr((x as Error).message); }
   };
   const setItem = (code: string, patch: any) => setItems(items.map(x => (x.code === code ? { ...x, ...patch } : x)));
+  const fikenAct = async (fn: () => Promise<any>, msg: string) => { setErr(''); setOk(''); try { const o = await fn(); if (o?.jobs) { setFk(o); setFs(o.settings); } else await loadFiken(); setOk(msg); } catch (x) { setErr((x as Error).message); } };
   return (
     <section>
       <div className="pagehead"><h2>{T('Fakturering › Innstillinger')}</h2></div>
@@ -314,6 +354,34 @@ export function InvoiceSettings({ me }: { me: Me }) {
         <p className="hint">{T('Betalingsfristen på partnerkortet går foran denne. Fakturanumrene er én sammenhengende serie for fakturaer og kreditnotaer; den kan bare flyttes fremover.')}</p>
         {can && <div className="row"><button className="btn" type="submit">{T('Lagre')}</button></div>}
       </form>
+      {fk && fs && <form className="panelbox" onSubmit={e => { e.preventDefault(); fikenAct(() => api('/invoicing/settings', { method: 'PUT', body: { fiken: fs } }), T('Lagret.')); }}>
+        <h3>Fiken <span className="chip">{fk.adapter === 'live' ? T('Sender til Fiken') : T('Simulator — ingenting sendes')}</span>
+          {Number(fk.counts.failed) > 0 && <span className="pill rejected">{fk.counts.failed} {T('feilet')}</span>}{Number(fk.counts.waiting) > 0 && <span className="pill submitted">{fk.counts.waiting} {T('venter')}</span>}</h3>
+        <p className="hint" style={{ marginTop: 0 }}>{T('Hver utstedte faktura og kreditnota føres i Fiken som «Annet salg» med OdinAi sitt fakturanummer; innbetalinger føres på salget. Kontoene og mva-typene under må regnskapsføreren bekrefte. API-nøkkelen (FIKEN_TOKEN) ligger i .env og vises aldri her.')}</p>
+        {fk.gaps.length > 0 && <div className="warnmsg">{T('Mangler')}: {fk.gaps.map((g: string) => T(g)).join(', ')}.</div>}
+        <div className="formgrid">
+          <div><label htmlFor="fk-slug">{T('Selskapets navn i Fiken (slug)')}</label><input id="fk-slug" value={fs.companySlug} disabled={!can} placeholder="odin-customs-as" onChange={e => setFs({ ...fs, companySlug: e.target.value })} /></div>
+          <div><label htmlFor="fk-pay">{T('Bankkonto for innbetalinger')}</label><input id="fk-pay" value={fs.paymentAccount} disabled={!can} placeholder="1920:10001" onChange={e => setFs({ ...fs, paymentAccount: e.target.value })} /></div>
+          <label className="chk fcheck"><input type="checkbox" disabled={!can} checked={!!fs.auto} onChange={e => setFs({ ...fs, auto: e.target.checked })} /> {T('Send til Fiken av seg selv')}</label>
+        </div>
+        <div className="tblwrap" style={{ marginTop: 10 }}><table className="t small">
+          <thead><tr><th>{T('Mva-kode i OdinAi')}</th><th>{T('Konto i Fiken')}</th><th>{T('Mva-type i Fiken')}</th></tr></thead>
+          <tbody>{Object.keys(VAT).map(k => <tr key={k}><td>{T(VAT[k])}</td>
+            <td><input aria-label={`${T('Konto i Fiken')} ${k}`} value={fs.accounts[k] ?? ''} disabled={!can} onChange={e => setFs({ ...fs, accounts: { ...fs.accounts, [k]: e.target.value } })} style={{ width: 120 }} /></td>
+            <td><select aria-label={`${T('Mva-type i Fiken')} ${k}`} value={fs.vatTypes[k] ?? ''} disabled={!can} onChange={e => setFs({ ...fs, vatTypes: { ...fs.vatTypes, [k]: e.target.value } })} style={{ minWidth: 0 }}>
+              {['NONE', 'HIGH', 'MEDIUM', 'LOW', 'EXEMPT', 'EXEMPT_IMPORT_EXPORT', 'OUTSIDE', 'EXEMPT_REVERSE', 'RAW_FISH'].map(v => <option key={v} value={v}>{v}</option>)}</select></td></tr>)}</tbody></table></div>
+        {can && <div className="row"><button className="btn" type="submit">{T('Lagre')}</button>
+          <button className="btn grey" type="button" onClick={() => fikenAct(() => api('/invoicing/fiken/catch-up', { body: {} }), T('Det som manglet, er lagt i køen.'))}>{T('Send det som mangler i Fiken')}</button></div>}
+        <h3 style={{ marginTop: 16 }}>{T('Fiken-køen')}</h3>
+        <div className="tblwrap"><table className="t small">
+          <thead><tr><th>{T('Faktura')}</th><th>{T('Hva')}</th><th>{T('Status')}</th><th>{T('Melding')}</th><th>{T('Tid')}</th>{can && <th />}</tr></thead>
+          <tbody>{fk.jobs.slice(0, 50).map((j: any) => <tr key={j.id}>
+            <td className="mono"><a href={`/invoices/${j.invoice_id}`} onClick={go(nav, `/invoices/${j.invoice_id}`)}>{j.invoice_no}</a> <span className="muted">{j.client_name}</span></td>
+            <td>{T(JOB_KIND[j.kind] ?? j.kind)}</td><td>{jobPill(j.status)}</td><td>{j.last_error ? T(j.last_error) : ''}</td><td className="muted nowrap">{fmtDateTime(j.finished_at ?? j.queued_at)}</td>
+            {can && <td className="nowrap">{j.status === 'FAILED' && <button type="button" className="linkbtn" onClick={() => fikenAct(() => api(`/invoicing/fiken/${j.id}/retry`, { body: {} }), T('Sendes på nytt.'))}>{T('Prøv igjen')}</button>}
+              {['QUEUED', 'FAILED'].includes(j.status) && <button type="button" className="linkbtn" onClick={() => { const why = window.prompt(T('Hvorfor avbrytes jobben (f.eks. ført for hånd i Fiken)?')); if (why?.trim()) fikenAct(() => api(`/invoicing/fiken/${j.id}/cancel`, { body: { reason: why } }), T('Avbrutt.')); }}>{T('Avbryt')}</button>}</td>}
+          </tr>)}{!fk.jobs.length && <tr><td colSpan={6} className="muted">{T('Ingenting sendt ennå.')}</td></tr>}</tbody></table></div>
+      </form>}
       <div className="panelbox"><h3>{T('Prisliste')}</h3>
         <p className="hint" style={{ marginTop: 0 }}>{T('Listeprisen gjelder når klienten ikke har en avtalt pris på partnerkortet. Prisene er uten mva. En endring gjelder nye utkast, ikke fakturaer som er laget.')}</p>
         <div className="tblwrap"><table className="t">

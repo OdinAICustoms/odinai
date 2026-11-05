@@ -8,6 +8,8 @@ import { inForce } from '../partners/rules.js';
 import * as docs from '../documents.js';
 import * as R from './pricing.js';
 import { renderInvoice } from './pdf.js';
+import * as F from './fiken.js';
+import { buildEhf, ehfGaps } from './ehf.js';
 
 /**
  * Odin's own invoices (phase 4a): the basis (accepted declarations not yet invoiced), drafts, issuing
@@ -56,7 +58,24 @@ export async function saveSettings(req: Request, b: any) {
   if (c.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email)) fail(400, 'E-postadressen er ikke gyldig.');
   const dueDays = b.dueDays === undefined ? cur.dueDays : Math.round(num(b.dueDays));
   if (!(dueDays >= 0 && dueDays <= 120)) fail(400, 'Betalingsfristen må være mellom 0 og 120 dager.');
-  const next: Settings = { company: c, dueDays, kid: b.kid === undefined ? cur.kid : !!b.kid, footer: b.footer === undefined ? cur.footer : String(b.footer ?? '').slice(0, 500) };
+  const curF = await F.fikenSettings();
+  const fiken: F.FikenSettings = { ...curF };
+  if (b.fiken) {
+    if (b.fiken.companySlug !== undefined) fiken.companySlug = String(b.fiken.companySlug ?? '').trim();
+    if (b.fiken.auto !== undefined) fiken.auto = !!b.fiken.auto;
+    if (b.fiken.paymentAccount !== undefined) fiken.paymentAccount = String(b.fiken.paymentAccount ?? '').trim();
+    for (const k of Object.keys(F.FIKEN_DEFAULTS.accounts)) {
+      if (b.fiken.accounts?.[k] !== undefined) fiken.accounts = { ...fiken.accounts, [k]: String(b.fiken.accounts[k] ?? '').trim() };
+      if (b.fiken.vatTypes?.[k] !== undefined) fiken.vatTypes = { ...fiken.vatTypes, [k]: String(b.fiken.vatTypes[k] ?? '').trim() };
+    }
+    if (fiken.companySlug && !/^[a-z0-9-]+$/.test(fiken.companySlug)) fail(400, 'Selskapets navn i Fiken (slug) har bare små bokstaver, tall og bindestrek, f.eks. odin-customs-as.', 'FIKEN_SLUG');
+    const badAcc = Object.entries(fiken.accounts).filter(([, v]) => !F.ACCOUNT_RE.test(v));
+    if (badAcc.length) fail(400, `Kontoene i Fiken er fire siffer, eventuelt med underkonto (f.eks. 3000 eller 1500:10001): ${badAcc.map(([k]) => k).join(', ')}.`, 'FIKEN_ACCOUNT');
+    if (fiken.paymentAccount && !F.ACCOUNT_RE.test(fiken.paymentAccount)) fail(400, 'Bankkontoen i Fiken skrives som 1920:10001.', 'FIKEN_ACCOUNT');
+    const badVat = Object.entries(fiken.vatTypes).filter(([, v]) => !F.SALE_VAT_TYPES.includes(v));
+    if (badVat.length) fail(400, `Ukjent mva-type for Fiken: ${badVat.map(([k]) => k).join(', ')}.`, 'FIKEN_VAT');
+  }
+  const next = { company: c, dueDays, kid: b.kid === undefined ? cur.kid : !!b.kid, footer: b.footer === undefined ? cur.footer : String(b.footer ?? '').slice(0, 500), fiken };
   await tx(async db => {
     await db.query(`INSERT INTO app_settings (key, value, updated_by) VALUES ('invoicing', $1, $2)
         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = now()`, [JSON.stringify(next), req.user!.id]);
@@ -69,8 +88,8 @@ export async function saveSettings(req: Request, b: any) {
       if (want < now || want <= used) fail(409, `Nummerserien kan bare flyttes fremover (neste nummer er ${now}).`, 'SERIES_BACKWARDS');
       await db.query("UPDATE invoice_counter SET next_no = $1 WHERE series = 'INVOICE'", [want]);
     }
-    await audit(req, { action: 'INVOICE_SETTINGS', objectType: 'SETTINGS', objectId: 'invoicing', before: { ...cur.company, dueDays: cur.dueDays, kid: cur.kid, nextNo: cur.nextNo },
-      after: { ...c, dueDays, kid: next.kid, nextNo: b.nextNo ?? cur.nextNo } }, db);
+    await audit(req, { action: 'INVOICE_SETTINGS', objectType: 'SETTINGS', objectId: 'invoicing', before: { ...cur.company, dueDays: cur.dueDays, kid: cur.kid, nextNo: cur.nextNo, fiken: curF },
+      after: { ...c, dueDays, kid: next.kid, nextNo: b.nextNo ?? cur.nextNo, fiken } }, db);
   });
   return settings();
 }
@@ -184,7 +203,7 @@ async function insertLine(c: pg.PoolClient, invoiceId: string, l: R.LineDraft & 
       l.declaration_id, l.price_source, l.agreed_price ?? null, l.credits_line_id ?? null]);
 }
 async function recalc(c: Db, invoiceId: string, depositApplied = 0) {
-  const lines = await query('SELECT amount, vat_amount, vat_code FROM invoice_line WHERE invoice_id = $1 AND removed_at IS NULL', [invoiceId], c);
+  const lines = await query('SELECT amount, vat_amount, vat_code, vat_rate FROM invoice_line WHERE invoice_id = $1 AND removed_at IS NULL', [invoiceId], c);
   const t = R.totals(lines, depositApplied);
   await c.query(`UPDATE invoice SET net_total = $2, vat_total = $3, outlay_total = $4, deposit_applied = $5, total = $6, updated_at = now() WHERE id = $1`,
     [invoiceId, t.net_total, t.vat_total, t.outlay_total, t.deposit_applied, t.total]);
@@ -444,7 +463,9 @@ export async function issue(req: Request, id: string, b: any = {}) {
       [id, no, issueDate, due, k, JSON.stringify(sellerOf(s)), JSON.stringify(buyer), req.user!.id]);
     await audit(req, { action: 'INVOICE_ISSUED', objectType: 'INVOICE', objectId: id, before: { status: 'DRAFT' }, after: { status: 'ISSUED', invoice_no: no },
       detail: { invoiceNo: no, issueDate, dueDate: due, kid: k, total: t.total, deposit: t.deposit_applied } }, c);
+    await F.enqueue(c, 'SALE', id, req.user!.id);
   });
+  F.kick();
   await makePdf(req, id).catch(e => console.error('Faktura-PDF', id, e));
   return card(id);
 }
@@ -488,10 +509,75 @@ export async function credit(req: Request, id: string, b: any = {}) {
     await audit(req, { action: 'INVOICE_CREDITED', objectType: 'INVOICE', objectId: id, before: { status: 'ISSUED' }, after: { status: full ? 'CREDITED' : 'ISSUED' },
       detail: { creditNote: row.id, creditNo: no, reason, lines: chosen.length, full, total: t.total } }, c);
     await audit(req, { action: 'CREDIT_NOTE_ISSUED', objectType: 'INVOICE', objectId: row.id, detail: { invoiceNo: no, credits: i.invoice_no, reason, total: t.total } }, c);
+    await F.enqueue(c, 'SALE', row.id, req.user!.id);
+    // A fully credited invoice that nobody paid is settled against its credit note in Fiken too.
+    if (full && Number(i.paid_amount) === 0) { await F.enqueue(c, 'SETTLE', id, req.user!.id); await F.enqueue(c, 'SETTLE', row.id, req.user!.id); }
     return row.id as string;
   });
+  F.kick();
   await makePdf(req, creditId).catch(e => console.error('Kreditnota-PDF', creditId, e));
   return card(creditId);
+}
+
+/* ------------------------------ payments (by hand until the bank is connected) ------------------------------ */
+const openOf = async (i: any, db: Db = pool) => {
+  const credited = -Number((await one(`SELECT COALESCE(sum(total), 0) s FROM invoice WHERE credited_invoice_id = $1 AND status <> 'DISCARDED'`, [i.id], db))?.s ?? 0);
+  return R.r2(Number(i.total) - Number(i.paid_amount) - credited);
+};
+async function syncPaid(c: pg.PoolClient, invoiceId: string) {
+  await c.query(`UPDATE invoice SET paid_amount = (SELECT COALESCE(sum(amount), 0) FROM invoice_payment WHERE invoice_id = $1 AND reversed_at IS NULL), updated_at = now() WHERE id = $1`, [invoiceId]);
+}
+
+/** Register a payment on an issued invoice: at most what is open, dated today or earlier. */
+export async function registerPayment(req: Request, id: string, b: any) {
+  const amount = R.r2(num(b.amount));
+  if (!(amount > 0)) fail(400, 'Beløpet må være større enn null.', 'AMOUNT');
+  const paidDate = str(b.paid_date) ?? today();
+  if (!isDate(paidDate)) fail(400, 'Ugyldig betalingsdato.');
+  if (paidDate > today()) fail(400, 'Betalingsdatoen kan ikke være frem i tid.', 'FUTURE_DATE');
+  const method = ['BANK', 'CASH', 'OTHER'].includes(String(b.method)) ? String(b.method) : 'BANK';
+  await tx(async c => {
+    const i = await requireInvoice(id, c, true);
+    if (i.kind !== 'INVOICE' || i.status !== 'ISSUED') fail(409, 'Innbetalinger registreres på utstedte fakturaer som ikke er kreditert.', 'NOT_PAYABLE');
+    const open = await openOf(i, c);
+    if (amount > open + 0.005) fail(409, `Beløpet er større enn det som står åpent (${open.toFixed(2).replace('.', ',')} kr). Overskytende føres i regnskapet.`, 'OVERPAID');
+    const row = (await c.query(`INSERT INTO invoice_payment (invoice_id, amount, paid_date, method, reference, note, created_by) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+      [id, amount, paidDate, method, str(b.reference)?.slice(0, 100) ?? null, str(b.note)?.slice(0, 500) ?? null, req.user!.id])).rows[0];
+    await syncPaid(c, id);
+    await audit(req, { action: 'INVOICE_PAYMENT', objectType: 'INVOICE', objectId: id, detail: { payment: row.id, amount, paidDate, method, reference: str(b.reference), openBefore: open } }, c);
+    await F.enqueue(c, 'PAYMENT', id, req.user!.id, row.id);
+  });
+  F.kick();
+  return card(id);
+}
+
+/** A wrong payment is reversed with a reason (kept, never deleted) and undone in Fiken. */
+export async function reversePayment(req: Request, id: string, paymentId: string, b: any) {
+  uuidOr404(paymentId, 'innbetalingen');
+  const reason = str(b.reason);
+  if (!reason) fail(400, 'Oppgi hvorfor innbetalingen reverseres.', 'REASON_REQUIRED');
+  await tx(async c => {
+    await requireInvoice(id, c, true);
+    const p = await one('SELECT * FROM invoice_payment WHERE id = $1 AND invoice_id = $2', [paymentId, id], c);
+    if (!p) fail(404, 'Fant ikke innbetalingen.');
+    if (p.reversed_at) fail(409, 'Innbetalingen er allerede reversert.', 'ALREADY_REVERSED');
+    await c.query('UPDATE invoice_payment SET reversed_at = now(), reversed_by = $2, reversal_reason = $3 WHERE id = $1', [paymentId, req.user!.id, reason]);
+    await syncPaid(c, id);
+    // Not sent yet: the waiting job is cancelled instead of sending and then undoing it.
+    const waiting = await c.query(`UPDATE fiken_sync SET status = 'CANCELLED', finished_at = now(), last_error = 'Reversert før sending' WHERE kind = 'PAYMENT' AND payment_id = $1 AND status IN ('QUEUED', 'FAILED')`, [paymentId]);
+    if (!waiting.rowCount) await F.enqueue(c, 'PAYMENT_REVERSAL', id, req.user!.id, paymentId);
+    await audit(req, { action: 'INVOICE_PAYMENT_REVERSED', objectType: 'INVOICE', objectId: id, detail: { payment: paymentId, amount: Number(p.amount), reason } }, c);
+  });
+  F.kick();
+  return card(id);
+}
+
+/* ------------------------------ EHF ------------------------------ */
+export async function ehf(id: string) {
+  const data = await pdfData(id);
+  const gaps = ehfGaps(data.invoice);
+  if (gaps.length) fail(409, `EHF kan ikke lages: ${gaps.join(', ')}.`, 'EHF_NOT_POSSIBLE');
+  return { xml: buildEhf(data), filename: `${data.invoice.kind === 'CREDIT' ? 'Kreditnota' : 'Faktura'}-${data.invoice.invoice_no}.xml` };
 }
 
 /* ------------------------------ PDF ------------------------------ */
@@ -564,8 +650,13 @@ export async function card(id: string) {
     if (gaps.length) warnings.push({ rule: 'SETTINGS_INCOMPLETE', msg: `Firmaopplysninger mangler før fakturaen kan utstedes: ${gaps.join(', ')}.` });
     if (!live.length) warnings.push({ rule: 'NO_LINES', msg: 'Utkastet har ingen linjer.' });
   }
+  const payments = await query(`SELECT p.*, u.name created_by_name, r.name reversed_by_name FROM invoice_payment p LEFT JOIN users u ON u.id = p.created_by
+      LEFT JOIN users r ON r.id = p.reversed_by WHERE p.invoice_id = $1 ORDER BY p.paid_date, p.created_at`, [id]);
+  const fiken = await F.jobs(id);
+  const ehfBlocked = ['ISSUED', 'CREDITED'].includes(i.status) ? ehfGaps({ ...i, buyer: i.buyer }) : null;
   return {
-    ...i, client, lines, declarations, creditNotes, credits, credited, warnings,
+    ...i, client, lines, declarations, creditNotes, credits, credited, warnings, payments, fiken, ehfBlocked,
+    fikenLinked: !!(await one("SELECT 1 FROM fiken_link WHERE object_type = 'SALE' AND object_id = $1", [id])),
     open: i.kind === 'INVOICE' && i.status === 'ISSUED' ? R.r2(Number(i.total) - Number(i.paid_amount) - credited) : 0,
     display: displayStatus(i, credited), vatSummary: R.vatSummary(live),
     created_by_name: nameOf(i.created_by), issued_by_name: nameOf(i.issued_by), editable: i.status === 'DRAFT'
@@ -605,6 +696,7 @@ export async function summary() {
     open: all.filter(r => r.display === 'OPEN').length,
     overdue: all.filter(r => r.display === 'OVERDUE').length,
     openAmount: R.r2(all.filter(r => r.display === 'OPEN' || r.display === 'OVERDUE').reduce((s, r) => s + r.open, 0)),
-    basis: b.clients.reduce((s, c) => s + c.declarations.length, 0), noClient: b.noClient.length
+    basis: b.clients.reduce((s, c) => s + c.declarations.length, 0), noClient: b.noClient.length,
+    fikenFailed: Number((await one("SELECT count(*) n FROM fiken_sync WHERE status = 'FAILED'"))?.n ?? 0)
   };
 }

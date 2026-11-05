@@ -139,6 +139,17 @@ export const EN_PATTERNS: [RegExp, (m: RegExpMatchArray, t: Tr) => string][] = [
   [/^(.+): ugyldig dato\.$/, m => `${m[1].replace('Rubrikk', 'Box')}: invalid date.`],
   [/^Deklarasjonen har status (\w+) og kan ikke endres\.$/, m => `The declaration has status ${m[1]} and cannot be changed.`],
   [/^(Klienten|Avsenderen|Mottakeren|Deklaranten) finnes ikke i Forretningspartner\.$/, m => `The ${{ Klienten: 'client', Avsenderen: 'consignor', Mottakeren: 'consignee', Deklaranten: 'declarant' }[m[1]]} is not in Business partners.`],
+  /* Payments, EHF and Fiken (server/src/invoicing/service.ts, fiken.ts, ehf.ts) */
+  [/^(konto|mva-type) for (\w+)$/, m => `${m[1] === 'konto' ? 'account' : 'VAT type'} for ${m[2]}`],
+  [/^Beløpet er større enn det som står åpent \((.+) kr\)\. Overskytende føres i regnskapet\.$/, m => `The amount is more than what is open (${m[1]} kr). Any excess is handled in the bookkeeping.`],
+  [/^EHF kan ikke lages: (.+)\.$/, (m, t) => `EHF cannot be made: ${m[1].split(', ').map(t).join(', ')}.`],
+  [/^Kontoene i Fiken er fire siffer, eventuelt med underkonto \(f\.eks\. 3000 eller 1500:10001\): (.+)\.$/, m => `Accounts in Fiken are four digits, optionally with a sub-account (e.g. 3000 or 1500:10001): ${m[1]}.`],
+  [/^Ukjent mva-type for Fiken: (.+)\.$/, m => `Unknown VAT type for Fiken: ${m[1]}.`],
+  [/^Kontoene for Fiken er ikke gyldige \((.+)\)\. Rett dem under Fakturering › Innstillinger\.$/, m => `The accounts for Fiken are not valid (${m[1]}). Correct them under Invoicing › Settings.`],
+  [/^Fiken \(simulator\) avviste salget: (.+)\.$/, m => `Fiken (simulator) refused the sale: ${m[1].replace(/beløp i øre/g, 'amounts in øre')}.`],
+  [/^Fiken \(simulator\) avviste innbetalingen: konto eller beløp\.$/, () => 'Fiken (simulator) refused the payment: account or amount.'],
+  [/^Fiken svarte (\d+)(.*)$/s, m => `Fiken answered ${m[1]}${m[2]}`],
+  [/^Avbrutt: (.+)$/s, m => `Cancelled: ${m[1]}`],
   /* Invoicing (server/src/invoicing/service.ts and pricing.ts) */
   [/^Nummerserien kan bare flyttes fremover \(neste nummer er (\d+)\)\.$/, m => `The number series can only move forward (the next number is ${m[1]}).`],
   [/^(\S+) er ikke godtatt av Tolletaten og kan ikke faktureres ennå\.$/, m => `${m[1]} has not been accepted by Norwegian Customs and cannot be invoiced yet.`],

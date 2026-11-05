@@ -67,6 +67,29 @@ describe('Invoicing rules as pure functions', () => {
   });
 });
 
+describe('Fiken and EHF as pure functions', () => {
+  it('a sale: øre per line, accounts and VAT types from the settings, line VAT adds up to the VAT per rate', async () => {
+    const { saleRequest, simulatorCheckSale, FIKEN_DEFAULTS, fikenGaps } = await import('../src/invoicing/fiken.js');
+    const lines = [{ description: 'A', amount: '0.10', vat_code: 'HIGH', vat_rate: '25', vat_amount: '0.03' }, { description: 'B', amount: '0.10', vat_code: 'HIGH', vat_rate: '25', vat_amount: '0.03' },
+      { description: 'Toll', amount: '110', vat_code: 'OUTLAY', vat_rate: '0', vat_amount: '0' }];
+    const s = saleRequest({ invoice_no: 10001, issue_date: '2026-11-06', due_date: '2026-11-20', kind: 'INVOICE', kid: '123455' }, lines, FIKEN_DEFAULTS, 77);
+    expect(s).toMatchObject({ saleNumber: '10001', kind: 'external_invoice', customerId: 77, dueDate: '2026-11-20', kid: '123455' });
+    expect(s.lines.map(l => [l.netPrice, l.vat, l.account, l.vatType])).toEqual([[10, 2, '3000', 'HIGH'], [10, 3, '3000', 'HIGH'], [11000, 0, '2910', 'NONE']]);
+    expect(s.lines.reduce((t, l) => t + l.vat, 0)).toBe(5);   // 0,20 × 25 % = 0,05, rounded once
+    expect(simulatorCheckSale(s)).toEqual([]);
+    expect(simulatorCheckSale({ ...s, lines: [{ ...s.lines[0], vatType: 'X', netPrice: 1.5 }] })).toEqual(['lines[0] beløp i øre', 'lines[0].vatType']);
+    expect(fikenGaps(FIKEN_DEFAULTS, 'live')).toEqual(expect.arrayContaining(['bankkonto for innbetalinger', 'selskapets navn i Fiken (slug)']));
+  });
+  it('EHF tax categories: S, Z, E (unntatt and utlegg), O without VAT registration', async () => {
+    const { category } = await import('../src/invoicing/ehf.js');
+    expect(category('HIGH', 25, true)).toEqual({ id: 'S', percent: 25, reason: null });
+    expect(category('ZERO', 0, true).id).toBe('Z');
+    expect(category('OUTLAY', 0, true)).toEqual({ id: 'E', percent: 0, reason: 'Utlegg' });
+    expect(category('EXEMPT', 0, true).reason).toBe('Unntatt merverdiavgift');
+    expect(category('HIGH', 0, false)).toEqual({ id: 'O', percent: null, reason: 'Ikke mva-registrert' });
+  });
+});
+
 describe('Invoicing through the API', () => {
   const sara = client(), aron = client(), fia = client();
   let importer = '', declA: any, declB: any, draft: any, invoice: any;
@@ -168,7 +191,9 @@ describe('Invoicing through the API', () => {
     const sum = (f: (l: any) => boolean, k = 'amount') => Math.round(live.filter(f).reduce((s: number, l: any) => s + Number(l[k]), 0) * 100) / 100;
     expect(Number(draft.net_total)).toBe(sum(l => l.vat_code !== 'OUTLAY'));
     expect(Number(draft.outlay_total)).toBe(sum(l => l.vat_code === 'OUTLAY'));
-    expect(Number(draft.total)).toBe(Math.round((sum(l => l.vat_code !== 'OUTLAY') + sum(() => true, 'vat_amount') + sum(l => l.vat_code === 'OUTLAY')) * 100) / 100);
+    // VAT is worked out once per rate on the base (all fees here are 25 %).
+    expect(Number(draft.vat_total)).toBe(Math.round(sum(l => l.vat_code !== 'OUTLAY') * 25) / 100);
+    expect(Number(draft.total)).toBe(Math.round((sum(l => l.vat_code !== 'OUTLAY') + Number(draft.vat_total) + sum(l => l.vat_code === 'OUTLAY')) * 100) / 100);
     expect((await fia.post(`/invoices/${draft.id}/lines`, { description: 'x', quantity: 0, unit_price: 1 })).body.code).toBe('QUANTITY');
     const pdf = await fia.get(`/invoices/${draft.id}/pdf`).buffer(true).parse((res, cb) => { const b: Buffer[] = []; res.on('data', (c: Buffer) => b.push(c)); res.on('end', () => cb(null, Buffer.concat(b))); });
     expect(pdf.headers['content-type']).toBe('application/pdf');
@@ -250,5 +275,89 @@ describe('Invoicing through the API', () => {
       'INVOICE_SETTINGS', 'INVOICE_ISSUED', 'INVOICE_CREDITED', 'CREDIT_NOTE_ISSUED', 'DOCUMENT_STORED']));
     const sum = (await fia.get('/invoicing/summary')).body;
     expect(sum).toMatchObject({ drafts: 0, open: 1, basis: 1 });
+  });
+
+  const fikenIdle = async () => {
+    for (let i = 0; i < 80; i++) { const o = (await fia.get('/invoicing/fiken')).body; if (!Number(o.counts.waiting)) return o; await new Promise(r => setTimeout(r, 100)); }
+    throw new Error('Fiken queue still busy');
+  };
+
+  it('Fiken (simulator): every issued invoice and credit note is a sale; the fully credited one is settled', async () => {
+    const o = await fikenIdle();
+    expect(o.adapter).toBe('simulator');
+    const done = o.jobs.filter((j: any) => j.status === 'DONE');
+    expect(done.filter((j: any) => j.kind === 'SALE').map((j: any) => j.invoice_no).sort()).toEqual([10001, 10002, 10003, 20001]);
+    expect(done.filter((j: any) => j.kind === 'SETTLE').map((j: any) => j.invoice_no).sort()).toEqual([10001, 10003]);
+    const sale = done.find((j: any) => j.kind === 'SALE' && j.invoice_no === 20001);
+    expect(sale.request).toMatchObject({ saleNumber: '20001', kind: 'external_invoice', currency: 'NOK' });
+    expect(sale.request.lines.find((l: any) => l.account === '2910')).toMatchObject({ vatType: 'NONE', vat: 0 });   // the outlay
+    const inv = (await fia.get(`/invoices/${sale.invoice_id}`)).body;
+    expect(sale.request.lines.reduce((s: number, l: any) => s + l.netPrice + l.vat, 0)).toBe(Math.round(Number(inv.total) * 100));
+    const credit = done.find((j: any) => j.kind === 'SALE' && j.invoice_no === 10003);
+    expect(credit.request.lines.every((l: any) => l.netPrice <= 0)).toBe(true);
+    expect((await pool.query("SELECT count(*) n FROM fiken_link WHERE object_type = 'CONTACT'")).rows[0].n).toBe(1);
+    expect((await fia.put('/invoicing/settings', { fiken: { accounts: { HIGH: '30' } } })).body.code).toBe('FIKEN_ACCOUNT');
+    expect((await fia.put('/invoicing/settings', { fiken: { vatTypes: { HIGH: 'BOGUS' } } })).body.code).toBe('FIKEN_VAT');
+  });
+
+  it('payments by hand: partial, too much refused, a missing bank account in Fiken fails visibly, reversal, paid in full', async () => {
+    const inv = (await fia.get('/invoices?q=20001')).body[0];
+    const total = Number(inv.total);
+    expect((await sara.post(`/invoices/${inv.id}/payments`, { amount: 100 })).status).toBe(403);
+    expect((await fia.post(`/invoices/${inv.id}/payments`, { amount: total + 1 })).body.code).toBe('OVERPAID');
+    expect((await fia.post(`/invoices/${inv.id}/payments`, { amount: 10, paid_date: '2999-01-01' })).body.code).toBe('FUTURE_DATE');
+    let r = (await fia.post(`/invoices/${inv.id}/payments`, { amount: 100, reference: 'ARK-1' })).body;
+    expect(r).toMatchObject({ paid_amount: '100.00', display: 'OPEN' });
+    expect(r.open).toBe(Math.round((total - 100) * 100) / 100);
+    let o = await fikenIdle();
+    const failed = o.jobs.find((j: any) => j.kind === 'PAYMENT' && j.status === 'FAILED');
+    expect(failed.last_error).toContain('Bankkontoen for innbetalinger');
+    expect(o.gaps).toContain('bankkonto for innbetalinger');
+    await fia.put('/invoicing/settings', { fiken: { paymentAccount: '1920:10001' } });
+    await fia.post(`/invoicing/fiken/${failed.id}/retry`, {});
+    o = await fikenIdle();
+    const paid = o.jobs.find((j: any) => j.id === failed.id);
+    expect(paid).toMatchObject({ status: 'DONE', request: { account: '1920:10001', amount: 10000 } });
+    // Reversed: kept with the reason, undone in Fiken.
+    const p = r.payments[0];
+    expect((await fia.post(`/invoices/${inv.id}/payments/${p.id}/reverse`, {})).body.code).toBe('REASON_REQUIRED');
+    r = (await fia.post(`/invoices/${inv.id}/payments/${p.id}/reverse`, { reason: 'Feil faktura' })).body;
+    expect(r).toMatchObject({ paid_amount: '0.00' });
+    expect(r.payments[0]).toMatchObject({ reversal_reason: 'Feil faktura' });
+    await expect(pool.query('DELETE FROM invoice_payment')).rejects.toThrow(/never deleted/);
+    await expect(pool.query('UPDATE invoice_payment SET amount = 1')).rejects.toThrow(/only be reversed/);
+    o = await fikenIdle();
+    expect(o.jobs.find((j: any) => j.kind === 'PAYMENT_REVERSAL')).toMatchObject({ status: 'DONE', response: { undone: true } });
+    r = (await fia.post(`/invoices/${inv.id}/payments`, { amount: total, method: 'BANK' })).body;
+    expect(r).toMatchObject({ display: 'PAID', open: 0 });
+    expect((await fia.get('/invoices?status=PAID')).body.map((x: any) => x.invoice_no)).toContain(20001);
+    expect((await fia.post(`/invoices/${inv.id}/payments`, { amount: 1 })).body.code).toBe('OVERPAID');
+    const actions = (await pool.query("SELECT action FROM audit_log WHERE object_type = 'INVOICE' ORDER BY id")).rows.map(x => x.action);
+    expect(actions).toEqual(expect.arrayContaining(['INVOICE_PAYMENT', 'INVOICE_PAYMENT_REVERSED', 'FIKEN_SENT', 'FIKEN_FAILED', 'FIKEN_RETRY']));
+  });
+
+  it('EHF: Peppol BIS Billing 3.0 for an invoice and a credit note; refused for a draft', async () => {
+    const inv = (await fia.get('/invoices?q=20001')).body[0];
+    const x = await fia.get(`/invoices/${inv.id}/ehf`);
+    expect(x.status, x.text).toBe(200);
+    expect(x.headers['content-type']).toContain('application/xml');
+    const xml = x.text;
+    for (const s of ['<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"', 'urn:fdc:peppol.eu:2017:poacc:billing:3.0', '<cbc:ID>20001</cbc:ID>',
+      '<cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>', '<cbc:EndpointID schemeID="0192">931481274</cbc:EndpointID>', '<cbc:EndpointID schemeID="0192">923609016</cbc:EndpointID>',
+      '<cbc:CompanyID>NO931481274MVA</cbc:CompanyID>', '<cbc:CompanyID>Foretaksregisteret</cbc:CompanyID>', `<cbc:PaymentID>${inv.kid}</cbc:PaymentID>`,
+      '<cbc:ID>86011117947</cbc:ID>', '<cbc:ID>S</cbc:ID><cbc:Percent>25</cbc:Percent>', '<cbc:TaxExemptionReason>Utlegg</cbc:TaxExemptionReason>',
+      `<cbc:PayableAmount currencyID="NOK">${Number(inv.total).toFixed(2)}</cbc:PayableAmount>`])
+      expect(xml, s).toContain(s);
+    // Totals add up the way the validators check them.
+    const n = (tag: string) => Number(xml.match(new RegExp(`<cbc:${tag} currencyID="NOK">([\\d.-]+)<`))![1]);
+    expect(Math.round((n('TaxExclusiveAmount') + n('TaxAmount')) * 100) / 100).toBe(n('TaxInclusiveAmount'));
+    const c = (await fia.get('/invoices?q=10003')).body[0];
+    const cx = (await fia.get(`/invoices/${c.id}/ehf`)).text;
+    expect(cx).toContain('<CreditNote xmlns="urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2"');
+    expect(cx).toContain('<cbc:CreditNoteTypeCode>381</cbc:CreditNoteTypeCode>');
+    expect(cx).toMatch(/<cac:BillingReference><cac:InvoiceDocumentReference><cbc:ID>10001<\/cbc:ID>/);
+    expect(cx).not.toMatch(/currencyID="NOK">-/);   // amounts are positive on a credit note
+    const d = (await fia.post('/invoices', { clientId: importer })).body;
+    expect((await fia.get(`/invoices/${d.id}/ehf`)).body.code).toBe('EHF_NOT_POSSIBLE');
   });
 });
