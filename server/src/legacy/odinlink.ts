@@ -4,7 +4,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { createRequire } from 'node:module';
 import type pg from 'pg';
-import { tx } from '../db.js';
+import { tx, query } from '../db.js';
 import { config } from '../config.js';
 import { audit } from '../audit.js';
 import { searchName, digits } from '../partners/rules.js';
@@ -300,10 +300,21 @@ export async function importOdinLink(opts: Opts): Promise<LinkReport> {
     for (const f of pendingFiles) if (!fs.existsSync(f.to)) { fs.mkdirSync(path.dirname(f.to), { recursive: true }); fs.copyFileSync(f.from, f.to); }
     return report;
   } catch (e) {
-    if (e instanceof DryRun) return e.report;
+    if (e instanceof DryRun) {
+      // Sequences are not transactional: nextval/setval in the rolled-back run would leave gaps (RT-00004 instead of RT-00001).
+      await resetNumbers();
+      return e.report;
+    }
     throw e;
   } finally {
     L.close();
+  }
+}
+
+/** Puts the number sequences back to just after the highest saved number. */
+async function resetNumbers() {
+  for (const [seq, table, col, prefix] of [['bp_number', 'business_partner', 'partner_no', 'BP-'], ['product_number', 'product', 'product_no', 'PRD-'], ['rt_number', 'rt_permit', 'permit_no', 'RT-']]) {
+    await query(`SELECT setval('${seq}', coalesce((SELECT max(substring(${col} FROM ${prefix.length + 1})::int) FROM ${table} WHERE ${col} ~ '^${prefix}[0-9]+$'), 0) + 1, false)`);
   }
 }
 

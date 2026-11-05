@@ -138,6 +138,7 @@ describe('move from ODIN LINK', () => {
     expect(rts[0]).toMatchObject({ product_name: 'Roasted Moong Dal', tariff_code: '21069098', rate_tall: '0.0000', holder_org_no: '933154823', product_id: null });
     expect(rts[1]).toMatchObject({ product_name: 'Chana Jor Garanm', product_no: 'PRD-00004', tariff_code: null });
     expect(rts[1].notes).toContain('2109098');
+    expect(rts.map(r => r.permit_no).sort()).toEqual(['RT-00001', 'RT-00002']);   // the dry run used no numbers
     const doc = (await pool.query("SELECT * FROM document WHERE owner_type = 'RT_PERMIT'")).rows[0];
     expect(doc).toMatchObject({ owner_id: rts[0].id, doc_code: 'RT01', filename: 'vedtak.pdf', sha256: sha });
     expect(fs.readFileSync(path.join(fileStore, doc.storage_path)).equals(letter)).toBe(true);
