@@ -119,6 +119,7 @@ function General({ p, meta, me, can, act }: { p: any; meta: Meta; me: Me; can: b
             { k: 'default_incoterms', label: 'Standard leveringsvilkår', t: 'select', opts: Object.fromEntries(['EXW', 'FCA', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP', 'FAS', 'FOB', 'CFR', 'CIF'].map(x => [x, x])) },
             { k: 'default_incoterms_place', label: 'Standard leveringssted' },
             { k: 'deposit_paid', label: 'Depositum innbetalt', t: 'check' }, { k: 'deposit_amount', label: 'Depositum (NOK)', t: 'number' }, { k: 'deposit_date', label: 'Depositum dato', t: 'date' },
+            { k: 'ai_off', label: 'Reservert mot AI-behandling (dokumenter sendes ikke til AI-tjenesten)', t: 'check' },
             { k: 'notes', label: 'Merknader', t: 'textarea', wide: true }]} />
         </fieldset>
         {can && <div className="row"><button className="btn" type="submit">{T('Lagre')}</button></div>}

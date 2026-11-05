@@ -7,6 +7,7 @@ import * as L from '../refdata/lookup.js';
 import * as C from './codes.js';
 import { check, summary, type PartyInfo, type RuleContext } from './rules.js';
 import { calculate, B12_TYPES, B12_BASES, type CalcContext } from './calc.js';
+import * as AI from '../ai/intake.js';
 
 /**
  * Import declarations: the header (SAD boxes as columns) and its goods items. Only a DRAFT or RETURNED
@@ -145,7 +146,7 @@ export async function card(id: string) {
   const cx = await context(d, its);
   const issues = check(cx);
   return {
-    calc: cx.calc,
+    calc: cx.calc, reviews: await AI.reviewsFor(id), intakes: await AI.intakesFor(id), ai: AI.status(),
     ...d, items: its, parties: { client, exporter, importer, declarant }, box1: C.box1Column1(d.dispatch_country),
     created_by_name: name(d.created_by), updated_by_name: name(d.updated_by),
     editable: C.EDITABLE.includes(d.status), documents: await docs.listFor('DECLARATION', id), issues, check: summary(issues)
@@ -267,7 +268,8 @@ export async function context(d: any, its: any[]): Promise<RuleContext> {
     proceduresLoaded: await L.loaded('ref_procedure'), procedures, quotas,
     currencyKnown: !d.currency || d.currency === 'NOK' || !!(await one('SELECT 1 FROM currency WHERE code = $1', [d.currency])),
     fxFound: !d.currency || !!(await L.fxRate(d.currency, date)),
-    credit, products, calc: calculate(its, await calcContext(d, its))
+    credit, products, calc: calculate(its, await calcContext(d, its)),
+    openReviews: d.id ? (await one<{ n: number }>("SELECT COUNT(*) n FROM declaration_review WHERE declaration_id = $1 AND status = 'OPEN'", [d.id]))!.n : 0
   };
 }
 

@@ -160,17 +160,18 @@ export async function saveGeneral(req: Request, b: any) {
     category: upper(b.category) ?? 'ORGANIZATION', legal_name: str(b.legal_name) ?? '', registration_country: upper(b.registration_country) ?? 'NO',
     language: upper(b.language) ?? 'NO', is_client: bool(b.is_client), notes: str(b.notes),
     default_incoterms: upper(b.default_incoterms), default_incoterms_place: str(b.default_incoterms_place),
-    deposit_paid: bool(b.deposit_paid), deposit_amount: str(b.deposit_amount) ? Number(String(b.deposit_amount).replace(',', '.')) : null, deposit_date: date(b.deposit_date)
+    deposit_paid: bool(b.deposit_paid), deposit_amount: str(b.deposit_amount) ? Number(String(b.deposit_amount).replace(',', '.')) : null, deposit_date: date(b.deposit_date),
+    ai_off: bool(b.ai_off)            // the client has refused AI processing (phase 2c)
   };
   throwFindings(R.checkPartner(data));
   if (!(await one('SELECT 1 FROM country WHERE code = $1', [data.registration_country])) && (await one('SELECT COUNT(*) n FROM country'))!.n > 0)
     fail(400, `${data.registration_country} er ikke en kjent landkode. Velg et land fra listen.`, 'COUNTRY');
   if (!b.id) {
     const p = (await one(`INSERT INTO business_partner (category, legal_name, search_name, registration_country, language, is_client, notes,
-        default_incoterms, default_incoterms_place, deposit_paid, deposit_amount, deposit_date, created_by, updated_by)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$13) RETURNING *`,
+        default_incoterms, default_incoterms_place, deposit_paid, deposit_amount, deposit_date, created_by, updated_by, ai_off)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$13,$14) RETURNING *`,
       [data.category, data.legal_name, R.searchName(data.legal_name), data.registration_country, data.language, data.is_client, data.notes,
-        data.default_incoterms, data.default_incoterms_place, data.deposit_paid, data.deposit_amount, data.deposit_date, who(req)]))!;
+        data.default_incoterms, data.default_incoterms_place, data.deposit_paid, data.deposit_amount, data.deposit_date, who(req), data.ai_off]))!;
     await audit(req, { action: 'PARTNER_CREATED', objectType: 'PARTNER', objectId: p.id, after: data });
     return { partner: await get(p.id), warnings: [] };
   }
@@ -178,9 +179,9 @@ export async function saveGeneral(req: Request, b: any) {
   if (b.version != null && Number(b.version) !== before.version) fail(409, 'Partneren er endret av en annen bruker. Last inn på nytt før du lagrer.', 'VERSION');
   if (before.merged_into) fail(409, 'Partneren er slått sammen med en annen og kan ikke endres.', 'MERGED');
   await query(`UPDATE business_partner SET category=$2, legal_name=$3, search_name=$4, registration_country=$5, language=$6, is_client=$7, notes=$8,
-      default_incoterms=$9, default_incoterms_place=$10, deposit_paid=$11, deposit_amount=$12, deposit_date=$13, version = version + 1, updated_at = now(), updated_by = $14 WHERE id = $1`,
+      default_incoterms=$9, default_incoterms_place=$10, deposit_paid=$11, deposit_amount=$12, deposit_date=$13, ai_off=$15, version = version + 1, updated_at = now(), updated_by = $14 WHERE id = $1`,
     [b.id, data.category, data.legal_name, R.searchName(data.legal_name), data.registration_country, data.language, data.is_client, data.notes,
-      data.default_incoterms, data.default_incoterms_place, data.deposit_paid, data.deposit_amount, data.deposit_date, who(req)]);
+      data.default_incoterms, data.default_incoterms_place, data.deposit_paid, data.deposit_amount, data.deposit_date, who(req), data.ai_off]);
   const pick = (o: any) => Object.fromEntries(Object.keys(data).map(k => [k, o[k] instanceof Date ? o[k].toISOString().slice(0, 10) : o[k] == null ? null : k === 'deposit_amount' ? Number(o[k]) : o[k]]));
   await audit(req, { action: 'PARTNER_CHANGED', objectType: 'PARTNER', objectId: b.id, before: pick(before), after: pick(data) });
   return { partner: await get(b.id), warnings: [] };

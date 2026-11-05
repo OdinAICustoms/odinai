@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { handle } from '../errors.js';
+import { handle, fail } from '../errors.js';
 import { need } from '../auth/guard.js';
 import * as D from './repo.js';
+import * as AI from '../ai/intake.js';
 
 export const declarationRoutes = Router();
 const read = need('declaration.read');
@@ -20,6 +21,30 @@ declarationRoutes.post('/declarations/:id/cancel', edit, handle(req => D.cancel(
 declarationRoutes.post('/declarations/:id/copy', edit, handle(req => D.copy(req, req.params.id)));
 declarationRoutes.post('/declarations/:id/documents', edit, handle(async req => {
   await D.storeDocument(req, req.params.id, req.body ?? {});
+  return D.card(req.params.id);
+}));
+
+/* AI intake (phase 2c). */
+declarationRoutes.get('/ai/status', read, handle(() => AI.status()));
+/** New declaration from documents: create the draft, store the files, start the AI reading. */
+declarationRoutes.post('/declarations/ai', edit, handle(async req => {
+  const b = req.body ?? {};
+  const files: any[] = Array.isArray(b.files) ? b.files : [];
+  if (!files.length) fail(400, 'Last opp minst ett dokument (faktura, pakkliste …).', 'NO_DOCUMENTS');
+  if (!AI.status().configured) fail(503, 'AI-tjenesten er ikke satt opp (ANTHROPIC_API_KEY mangler i .env).', 'AI_OFF');
+  const d = await D.create(req, { importer_id: b.importer_id, own_ref: b.own_ref, decl_type: b.decl_type }, 'AI');
+  for (const f of files) await D.storeDocument(req, d.id, f);
+  await AI.start(req, d.id);
+  return D.card(d.id);
+}));
+declarationRoutes.post('/declarations/:id/ai', edit, handle(async req => {
+  await AI.start(req, req.params.id, Array.isArray(req.body?.documentIds) ? req.body.documentIds : undefined);
+  return D.card(req.params.id);
+}));
+declarationRoutes.post('/declarations/:id/reviews/:review/clear', edit, handle(async req => { await AI.clearReview(req, req.params.id, req.params.review, req.body?.note); return D.card(req.params.id); }));
+declarationRoutes.post('/declarations/:id/reviews/:review/reopen', edit, handle(async req => { await AI.clearReview(req, req.params.id, req.params.review, null, true); return D.card(req.params.id); }));
+declarationRoutes.post('/declarations/:id/reviews/:review/create-partner', need('partner.edit'), edit, handle(async req => {
+  await AI.createPartnerFromReview(req, req.params.id, req.params.review);
   return D.card(req.params.id);
 }));
 

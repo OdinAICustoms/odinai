@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api, type Me } from '../../api';
 import { T, fmtDateTime, locale } from '../../i18n';
 import { Findings, PartnerPicker } from '../../components/Form';
+import { NewFromDocuments } from './AiParts';
 
 /** Status → Norwegian label and pill colour. */
 export const DSTATUS: Record<string, [string, string]> = {
@@ -20,7 +21,7 @@ export function DeclarationList({ me }: { me: Me }) {
   const [rows, setRows] = useState<any[]>([]);
   const [view, setView] = useState('open');
   const [q, setQ] = useState('');
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState<'' | 'ai' | 'manual'>('');
   useEffect(() => {
     const status = VIEWS.find(v => v[0] === view)![2];
     const p = new URLSearchParams({ ...(status ? { status } : { all: '1' }), ...(q.trim() ? { q: q.trim() } : {}) });
@@ -30,8 +31,11 @@ export function DeclarationList({ me }: { me: Me }) {
   return (
     <section>
       <div className="pagehead"><h2>{T('Innførselsdeklarasjoner')}</h2><span className="spacer" />
-        {me.perms.includes('declaration.edit') && <button className="btn add" type="button" onClick={() => setAdding(true)}>{T('+ Ny deklarasjon')}</button>}</div>
-      {adding && <NewDeclaration onDone={id => nav(`/declarations/${id}`)} onCancel={() => setAdding(false)} />}
+        {me.perms.includes('declaration.edit') && <>
+          <button className="btn add" type="button" onClick={() => setAdding('ai')}>🤖 {T('+ Ny fra dokumenter')}</button>
+          <button className="btn grey" type="button" onClick={() => setAdding('manual')}>{T('+ Ny deklarasjon')}</button></>}</div>
+      {adding === 'ai' && <NewFromDocuments onDone={id => nav(`/declarations/${id}`)} onCancel={() => setAdding('')} />}
+      {adding === 'manual' && <NewDeclaration onDone={id => nav(`/declarations/${id}`)} onCancel={() => setAdding('')} />}
       <div className="tabs" role="tablist">{VIEWS.map(([k, l]) => <button key={k} type="button" role="tab" aria-selected={view === k} className={view === k ? 'on' : ''} onClick={() => setView(k)}>{T(l)}</button>)}</div>
       <div className="filters"><input value={q} onChange={e => setQ(e.target.value)} placeholder={T('Søk deklarasjonsnr., referanse, part, varebeskrivelse, varenummer')} aria-label={T('Søk')} style={{ flex: 1, minWidth: 260 }} /></div>
       <div className="tblwrap"><table className="t">

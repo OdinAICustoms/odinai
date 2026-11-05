@@ -13,7 +13,7 @@ Requirements and design: the OdinAi requirements document (Claude Docs). Built o
 |---|---|---|
 | 0 | Docker, database, login, roles, audit log, NO/EN, logo, daily reference data | Done |
 | 1 | Business partners, products, RT permits, data from ODIN LINK | Done (move: `npm run import:odinlink -w server`, dry run unless `-- --commit`) |
-| 2 | AI import declarations, review, approval, TVINN simulator | 2a import declaration and 2b calculation (checked against two accepted Proteria declarations) done; next 2c AI intake, 2d approval and TVINN simulator |
+| 2 | AI import declarations, review, approval, TVINN simulator | 2a declaration, 2b calculation (checked against two accepted Proteria declarations) and 2c AI intake done; next 2d approval and TVINN simulator |
 | 3 | Export and Digitoll | |
 | 4 | Invoicing (prices per client, KID, bank API, Fiken) | |
 | 5 | Online, Tolletaten test period, go-live | |
@@ -35,6 +35,16 @@ Other commands: `npm test` (server tests on a separate test database), `npm run 
 `npm run build`, `docker compose --profile app up -d --build` (the built app in Docker on port 3200).
 
 Settings are in `.env` (copy `.env.example`); it is never committed.
+
+## AI reading of documents
+
+AI-deklarasjoner › Innførsel › «+ Ny fra dokumenter»: invoice, packing list, export declaration or T1 are
+stored on a new draft and read in the background by Anthropic's Claude API (`server/src/ai`), with a fixed,
+versioned prompt and a fixed output structure. The draft is built from the registers first (partners by
+org. no. / EORI / name, products by GTIN and article numbers); what the AI read alone, and anything unclear,
+becomes a review point to clear. Every goods item keeps the source of its values. A client marked
+«Reservert mot AI-behandling» on the partner card is never sent. Needs `ANTHROPIC_API_KEY` in `.env`
+(optional `AI_MODEL`, default `claude-opus-5-5`, and `AI_EFFORT`, default `high`).
 
 ## Reference data
 

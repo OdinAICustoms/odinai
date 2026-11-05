@@ -38,6 +38,8 @@ export interface RuleContext {
   products: Record<string, { status: string; product_no: string }>;
   /** The calculation (phase 2b); rules that need it stay quiet without it. */
   calc?: DeclCalc;
+  /** Open review points from the AI intake (phase 2c). */
+  openReviews?: number;
 }
 
 const blank = (v: unknown) => v === undefined || v === null || String(v).trim() === '';
@@ -239,6 +241,7 @@ export function check(cx: RuleContext): Issue[] {
   }
 
   if (cx.calc) calcRules(cx, cx.calc, add);
+  if (cx.openReviews) add('warn', 'AI', 'REVIEW_OPEN', `${cx.openReviews} kontrollpunkt${cx.openReviews === 1 ? '' : 'er'} fra AI-lesingen er ikke avklart. Alle må avklares før innsending.`);
   return out;
 }
 

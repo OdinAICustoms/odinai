@@ -6,6 +6,7 @@ import { Findings, PartnerPicker, ProductPicker, useCountries } from '../../comp
 import { DocList, Upload } from '../../components/Docs';
 import { fmtCode } from '../products/ProductList';
 import { dPill, fmtAmount } from './DeclarationList';
+import { AiPanel, ItemSource } from './AiParts';
 
 type Issue = { lvl: 'err' | 'warn' | 'info'; box: string; rule: string; msg: string; item?: number; field?: string };
 type Meta = Record<string, any>;
@@ -59,7 +60,13 @@ export function DeclarationEditor({ me }: { me: Me }) {
   }, [focus, item]);
   const goto = (i: Issue) => {
     if (i.item) { const it = d.items.find((x: any) => x.line_no === i.item); if (it) { setItem(it.id); setFocus(i.field ? `it-${i.field}` : 'item-form'); } }
-    else setFocus(i.field ? `f-${i.field}` : i.box === '44' ? 'sec-docs' : i.box === '32' ? 'sec-items' : null);
+    else setFocus(i.field ? `f-${i.field}` : i.box === '44' ? 'sec-docs' : i.box === '32' ? 'sec-items' : i.box === 'AI' ? 'sec-ai' : null);
+  };
+  // From an AI review point: a goods item, or the box it is about.
+  const BOX_FIELD: Record<string, string> = { '2': 'f-exporter_id', '8': 'f-importer_id', '12': 'f-value_details', '22': 'f-invoice_total', '38': 'sec-items', '44': 'sec-docs' };
+  const gotoReview = (line: number | null, box?: string) => {
+    if (line) goto({ item: line } as Issue);
+    else if (box && BOX_FIELD[box]) setFocus(BOX_FIELD[box]);
   };
 
   if (err && !d) return <div className="err">{T(err)}</div>;
@@ -88,6 +95,7 @@ export function DeclarationEditor({ me }: { me: Me }) {
             <button className="btn" type="button" onClick={save}>{T('Lagre')}</button><button className="btn grey" type="button" onClick={() => take(d)}>{T('Angre')}</button></div>}
           <Findings error={err} />{ok && !dirty.length && <div className="okmsg">{ok}</div>}
 
+          <AiPanel d={d} can={can} act={act} onReload={load} onGoto={gotoReview} />
           <Section title="Parter">
             <PartyField k="exporter_id" box="2" label="Avsender / eksportør" d={d} v={v} setV={setV} can={can} issues={issuesFor('exporter_id')} name={d.parties.exporter} />
             <PartyField k="importer_id" box="8" label="Mottaker / importør" d={d} v={v} setV={setV} can={can} issues={issuesFor('importer_id')} name={d.parties.importer} />
@@ -458,6 +466,7 @@ function ItemForm({ d, it, meta, can, onClose, act, issues }: { d: any; it: any;
       <div className="row" style={{ marginTop: 0, alignItems: 'center' }}><h3 style={{ margin: 0 }}>{it ? `${T('Varepost')} ${it.line_no}` : T('Ny varepost')}</h3><span className="spacer" />
         <button type="button" className="linkbtn" onClick={onClose}>{T('Lukk')}</button></div>
       {issues.length > 0 && <ul className="issues inline">{issues.filter(i => !i.field || !ITEM_KEYS.includes(i.field)).map((i, n) => <li key={n} className={i.lvl}>{T(i.msg)}</li>)}</ul>}
+      {it && <ItemSource s={it.source} />}
       <div className="formgrid">
         <div className="fwide"><label htmlFor="it-product_id"><span className="boxno">P</span>{T('Produkt i registeret')}</label>
           {it?.product_no && <div className="partyval">{it.product_no} <span className="muted">{it.product_status}</span></div>}
