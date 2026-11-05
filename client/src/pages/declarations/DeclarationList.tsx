@@ -37,13 +37,13 @@ export function DeclarationList({ me, direction = 'IMPORT' }: { me: Me; directio
           {!exp && <button className="btn add" type="button" onClick={() => setAdding('ai')}>🤖 {T('+ Ny fra dokumenter')}</button>}
           <button className="btn grey" type="button" onClick={() => setAdding('manual')}>{T('+ Ny deklarasjon')}</button></>}</div>
       {adding === 'ai' && <NewFromDocuments onDone={id => nav(`/declarations/${id}`)} onCancel={() => setAdding('')} />}
-      {adding === 'manual' && <NewDeclaration direction={direction} onDone={id => nav(`/declarations/${id}`)} onCancel={() => setAdding('')} />}
+      {adding === 'manual' && <NewDeclaration direction={direction} onDone={id => nav(`/${exp ? 'exports' : 'declarations'}/${id}`)} onCancel={() => setAdding('')} />}
       <div className="tabs" role="tablist">{VIEWS.map(([k, l]) => <button key={k} type="button" role="tab" aria-selected={view === k} className={view === k ? 'on' : ''} onClick={() => setView(k)}>{T(l)}</button>)}</div>
       <div className="filters"><input value={q} onChange={e => setQ(e.target.value)} placeholder={T('Søk deklarasjonsnr., referanse, part, varebeskrivelse, varenummer')} aria-label={T('Søk')} style={{ flex: 1, minWidth: 260 }} /></div>
       <div className="tblwrap"><table className="t">
         <thead><tr><th>{T('Deklarasjon')}</th><th>{T('Status')}</th><th>{T('Dato')}</th><th>{T('Klient')}</th><th>{T(exp ? 'Mottaker' : 'Avsender')}</th><th>{T('Referanse')}</th>
           <th className="num">{T('Vareposter')}</th><th className="num">{T('Fakturabeløp')}</th><th>{T('Sist endret')}</th></tr></thead>
-        <tbody>{rows.map(d => <tr key={d.id} className="click" onClick={() => nav(`/declarations/${d.id}`)}>
+        <tbody>{rows.map(d => <tr key={d.id} className="click" onClick={() => nav(`/${exp ? 'exports' : 'declarations'}/${d.id}`)}>
           <td className="mono nowrap"><b>{d.decl_no}</b>{d.created_from === 'AI' && <span className="pill info" style={{ marginLeft: 6 }}>AI</span>}</td>
           <td>{dPill(d.status)}</td><td className="nowrap">{fmtDate(d.decl_date)}</td><td>{d.client_name ?? (exp ? d.exporter_name : d.importer_name) ?? <span className="muted">—</span>}</td>
           <td>{(exp ? d.importer_name : d.exporter_name) ?? <span className="muted">—</span>}</td><td className="muted">{d.own_ref}</td><td className="num">{d.item_count}</td>

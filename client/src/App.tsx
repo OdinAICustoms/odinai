@@ -17,10 +17,12 @@ import { ProductCard } from './pages/products/ProductCard';
 import { DeclarationList } from './pages/declarations/DeclarationList';
 import { DeclarationEditor } from './pages/declarations/DeclarationEditor';
 import { SendQueue } from './pages/declarations/WorkflowParts';
+import { DigitollOverview, DigitollCard } from './pages/digitoll/Digitoll';
 
 /** The modules in the dark-blue band; each lists its functions for the light-blue band. */
 const MODULES = [
   { path: '/declarations', label: 'AI-deklarasjoner', icon: 'doc', sub: [['/declarations', 'Innførsel'], ['/exports', 'Utførsel'], ['/send-queue', 'Sendekø']] as [string, string][], also: ['/send-queue', '/exports'] },
+  { path: '/digitoll', label: 'Digitoll', icon: 'truck', sub: [] as [string, string][] },
   { path: '/partners', label: 'Forretningspartnere', icon: 'org', sub: [] },
   { path: '/products', label: 'Produkter', icon: 'box', sub: [['/products', 'Produktregister'], ['/rt-permits', 'RT-tillatelser']] as [string, string][], also: ['/rt-permits'] },
   { path: '/invoicing', label: 'Fakturering', icon: 'bill', phase: 4, sub: [] },
@@ -96,6 +98,9 @@ function Shell({ me, onLang, onSignOut }: { me: Me; onLang: (l: Lang) => void; o
             <Route path="/declarations/:id" element={<DeclarationEditor me={me} />} />
             <Route path="/send-queue" element={<SendQueue me={me} />} />
             <Route path="/exports" element={<DeclarationList me={me} direction="EXPORT" />} />
+            <Route path="/exports/:id" element={<DeclarationEditor me={me} />} />
+            <Route path="/digitoll" element={<DigitollOverview me={me} />} />
+            <Route path="/digitoll/:kind/:id" element={<DigitollCard me={me} />} />
             {MODULES.filter(m => m.phase).map(m => <Route key={m.path} path={m.path + '/*'} element={<Upcoming title={m.label} phase={m.phase!} />} />)}
             <Route path="/partners" element={<PartnerList me={me} />} />
             <Route path="/partners/:id" element={<PartnerCard me={me} />} />

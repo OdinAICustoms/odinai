@@ -87,7 +87,9 @@ export function DeclarationEditor({ me }: { me: Me }) {
         <div className="pills">{dPill(d.status)}<span className="chip mono" title={T('Rubrikk 1')}>{d.box1 ?? '—'} {d.decl_type}</span>
           {d.created_from !== 'MANUAL' && <span className="pill info">{T('Fra')} {d.created_from}</span>}</div>
         <span className="spacer" />
-        {me.perms.includes('declaration.edit') && <button className="btn grey" type="button" onClick={async () => { const r = await act(() => api(`/declarations/${id}/copy`, { body: {} })); if (r?.id) nav(`/declarations/${r.id}`); }}>{T('Kopier')}</button>}
+        {me.perms.includes('declaration.edit') && <button className="btn grey" type="button" onClick={async () => { const r = await act(() => api(`/declarations/${id}/copy`, { body: {} })); if (r?.id) nav(`/${exp ? 'exports' : 'declarations'}/${r.id}`); }}>{T('Kopier')}</button>}
+        {!exp && d.digitoll && <button className="btn grey" type="button" onClick={() => nav(`/digitoll/houses/${d.digitoll.id}`)}>Digitoll · {T(({ DRAFT: 'Utkast', ACCEPTED: 'Akseptert', INCOMPLETE: 'Ufullstendig', REJECTED: 'Avvist' } as Record<string, string>)[d.digitoll.status] ?? d.digitoll.status)}</button>}
+        {!exp && !d.digitoll && me.perms.includes('declaration.edit') && d.status !== 'CANCELLED' && <button className="btn grey" type="button" onClick={async () => { setErr(''); try { const r = await api(`/digitoll/houses/from-declaration/${id}`, { body: {} }); nav(`/digitoll/houses/${r.id}`); } catch (x) { setErr((x as Error).message); } }}>{T('Lag Digitoll-forsendelse')}</button>}
         <button className="btn grey" type="button" onClick={() => nav(exp ? '/exports' : '/declarations')}>← {T('Deklarasjoner')}</button>
       </div>
       {d.status === 'CANCELLED' && <div className="warnmsg">{T('Kansellert')}: {d.cancel_reason}</div>}

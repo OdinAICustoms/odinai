@@ -109,6 +109,26 @@ export const EN_PATTERNS: [RegExp, (m: RegExpMatchArray, t: Tr) => string][] = [
   [/^SIMULATOR \(øvelse\) — deklarasjonen er tatt ut til statistisk kontroll\.(.+)$/s, () => 'SIMULATOR (rehearsal) — the declaration is selected for statistical control. Check the declared information; this is not a rejection. The simulator selects declarations with an even running number and a statistical value over NOK 250,000.'],
   [/^SIMULATOR — deklarasjonen er godkjent\. Statistisk verdi (.+?) kr; toll og avgifter (.+?) kr( belastes konto (\d+))?; merverdiavgift (.+?) kr\.(.*)$/s,
     m => `SIMULATOR — the declaration is accepted. Statistical value NOK ${m[1]}; duty and levies NOK ${m[2]}${m[4] ? ` charged to account ${m[4]}` : ''}; VAT NOK ${m[5]}.${/CHED/.test(m[6]) ? ' The consignment requires CHED — release depends on the border control post\'s decision.' : ' The goods are released for the declared procedure.'}`],
+  // Export and Digitoll (phase 3).
+  [/^(Avsender|Mottaker): (navn|EORI \/ org\.nr\.|gateadresse|postnummer|sted|land)$/, m => `${m[1] === 'Avsender' ? 'Consignor' : 'Consignee'}: ${{ navn: 'name', 'EORI / org.nr.': 'EORI / org. no.', gateadresse: 'street address', postnummer: 'postcode', sted: 'city', land: 'country' }[m[2]]}`],
+  [/^(Avsender|Mottaker): (gateadresse eller postboks|land) må fylles ut\.$/, m => `${m[1] === 'Avsender' ? 'Consignor' : 'Consignee'}: ${m[2] === 'land' ? 'the country' : 'street address or PO box'} must be filled in.`],
+  [/^(.+) må fylles ut\.$/, (m, t) => `${t(m[1])} must be filled in.`],
+  [/^Variant (\d+): dokumentreferanse av type (\w+) mangler\. (.+)$/, m => `Variant ${m[1]}: a document reference of type ${m[2]} is missing. It must be in place at the latest at the border crossing.`],
+  [/^Kombinasjonen (.+) finnes ikke i Tolletatens prosedyretabell\.$/, m => `The combination ${m[1]} does not exist in Norwegian Customs' procedure table.`],
+  [/^Feltene kan ikke endres etter at MRN er gitt: (.+)\.$/, m => `The fields cannot be changed after the MRN is given: ${m[1]}.`],
+  [/^(Transporten|Hovedforsendelsen|Forsendelsen) (har aktive forsendelser koblet til seg|er kansellert|er allerede kansellert)(.*)$/, m => `${{ Transporten: 'The transport', Hovedforsendelsen: 'The master consignment', Forsendelsen: 'The house consignment' }[m[1]]} ${{
+    'har aktive forsendelser koblet til seg': 'has active consignments linked to it. Cancel or move them first.', 'er kansellert': 'is cancelled.', 'er allerede kansellert': 'is already cancelled.' }[m[2]]}`],
+  [/^Rubrikk 25\/29: transportmåte (\d+) \((.*)\) er ulogisk for (.+) ifølge Tolletatens oversikt\.$/, (m, t) => `Box 25/29: transport mode ${m[1]} (${t(m[2])}) is illogical for ${m[3]} according to Norwegian Customs' list.`],
+  [/^Rubrikk 29: (\d+) er ikke et kjent utpasseringstollsted\.$/, m => `Box 29: ${m[1]} is not a known exit customs office.`],
+  [/^Rubrikk 17a: Norge kan ikke være bestemmelsesland (.+)$/, () => 'Box 17a: Norway cannot be the country of destination on export (Svalbard and Jan Mayen = SJ).'],
+  [/^Rubrikk 20: (\w+) brukes bare ved sjøtransport, men rubrikk 25 er (\d+)\.$/, m => `Box 20: ${m[1]} is used only for sea transport, but box 25 is ${m[2]}.`],
+  [/^opprinnelsesland (\S+) med norsk fylke (\d+) (.+)$/, m => `country of origin ${m[1]} with Norwegian county ${m[2]} — correct only if the export value is at least twice the import value. Otherwise 91.`],
+  [/^prosedyre (\d+) \(fra tollager\) krever lagringssted i rubrikk 30 \((.+)\)\.$/, m => `procedure ${m[1]} (from customs warehouse) requires a storage type in box 30 (${m[2]}).`],
+  [/^gjenutførsel \((\d+)\) krever referanse (.+)$/, m => `re-export (${m[1]}) requires a reference to the import declaration to be written off (DOK in box 44).`],
+  [/^rubrikk 37 \((\d+)\) må begynne med ekspedisjonstypen i rubrikk 1 \((\d)\)\.$/, m => `box 37 (${m[1]}) must start with the expedition type in box 1 (${m[2]}).`],
+  [/^(.+): kontroller om utførselen krever tillatelse — oppgi (.+) i rubrikk 44 hvis den gjelder\.$/, m => `${m[1]}: check whether the export requires a permit — enter ${m[2].replace(' eller ', ' or ').replace('(eller UND)', '(or UND)')} in box 44 if it applies.`],
+  [/^varenummeret har flere avgiftsgrupper for (\w+) \((.+)\)\. Velg avgiftsgruppe — beregnet foreløpig med gruppe (\d+)\.$/, m => `the commodity code has several levy groups for ${m[1]} (${m[2]}). Choose the levy group — calculated provisionally with group ${m[3]}.`],
+  [/^SIMULATOR — utførselsdeklarasjonen er godkjent\.(.*)$/s, m => `SIMULATOR — the export declaration is accepted.${m[1].replace('Statistisk verdi', 'Statistical value').replace(' kr.', ' kr.').replace('Utførselsavgift', 'Export levy').replace('belastes konto', 'charged to account').replace('Varene skal passere utpasseringstollsted', 'The goods are to pass exit office')}`],
   // Format errors on save.
   [/^(Rubrikk \S+) (må ha seks siffer|må ha 8 siffer|har fire siffer|må være en landkode med to bokstaver|må være en valutakode med tre bokstaver)\.$/, m => `${m[1].replace('Rubrikk', 'Box')} ${{
     'må ha seks siffer': 'must have six digits', 'må ha 8 siffer': 'must have 8 digits', 'har fire siffer': 'has four digits',
