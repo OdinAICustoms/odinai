@@ -33,3 +33,7 @@ refdataRoutes.get('/refdata/currencies', handle(() => L.currencies()));
 refdataRoutes.get('/refdata/fx/:currency', handle(async req => (await L.fxRate(req.params.currency, dateQ.parse(req.query.date))) ?? fail(404, 'Ingen tollkurs for valutaen på datoen.')));
 refdataRoutes.get('/refdata/errors/:number', handle(async req => (await L.errorText(req.params.number)) ?? fail(404, 'Ukjent feilkode.')));
 refdataRoutes.get('/refdata/postnummer', handle(req => L.postalSearch(String(req.query.q ?? ''))));
+const dirQ = z.enum(['IMPORT', 'EXPORT']).optional();
+refdataRoutes.get('/refdata/offices', handle(req => L.offices(dirQ.parse(req.query.direction), dateQ.parse(req.query.date))));
+refdataRoutes.get('/refdata/procedures', handle(req => L.procedures(dateQ.parse(req.query.date))));
+refdataRoutes.get('/refdata/import-refs', handle(req => L.importRefs(dateQ.parse(req.query.date))));

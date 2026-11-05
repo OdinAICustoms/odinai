@@ -14,10 +14,12 @@ import { PartnerList } from './pages/partners/PartnerList';
 import { PartnerCard } from './pages/partners/PartnerCard';
 import { ProductList, RtList } from './pages/products/ProductList';
 import { ProductCard } from './pages/products/ProductCard';
+import { DeclarationList } from './pages/declarations/DeclarationList';
+import { DeclarationEditor } from './pages/declarations/DeclarationEditor';
 
 /** The modules in the dark-blue band; each lists its functions for the light-blue band. */
 const MODULES = [
-  { path: '/ai', label: 'AI-deklarasjoner', icon: 'doc', phase: 2, sub: [] as [string, string][] },
+  { path: '/declarations', label: 'AI-deklarasjoner', icon: 'doc', sub: [['/declarations', 'Innførsel']] as [string, string][] },
   { path: '/partners', label: 'Forretningspartnere', icon: 'org', sub: [] },
   { path: '/products', label: 'Produkter', icon: 'box', sub: [['/products', 'Produktregister'], ['/rt-permits', 'RT-tillatelser']] as [string, string][], also: ['/rt-permits'] },
   { path: '/invoicing', label: 'Fakturering', icon: 'bill', phase: 4, sub: [] },
@@ -87,7 +89,10 @@ function Shell({ me, onLang, onSignOut }: { me: Me; onLang: (l: Lang) => void; o
       <main className="page">
         {pw ? <ChangePassword onDone={() => setPw(false)} onCancel={() => setPw(false)} /> : (
           <Routes>
-            <Route path="/" element={<Navigate to="/ai" replace />} />
+            <Route path="/" element={<Navigate to="/declarations" replace />} />
+            <Route path="/ai" element={<Navigate to="/declarations" replace />} />
+            <Route path="/declarations" element={<DeclarationList me={me} />} />
+            <Route path="/declarations/:id" element={<DeclarationEditor me={me} />} />
             {MODULES.filter(m => m.phase).map(m => <Route key={m.path} path={m.path + '/*'} element={<Upcoming title={m.label} phase={m.phase!} />} />)}
             <Route path="/partners" element={<PartnerList me={me} />} />
             <Route path="/partners/:id" element={<PartnerCard me={me} />} />
@@ -99,7 +104,7 @@ function Shell({ me, onLang, onSignOut }: { me: Me; onLang: (l: Lang) => void; o
             <Route path="/admin/audit" element={<Audit />} />
             <Route path="/admin/settings" element={<Settings me={me} />} />
             <Route path="/admin/refdata" element={<RefData me={me} />} />
-            <Route path="*" element={<Navigate to="/ai" replace />} />
+            <Route path="*" element={<Navigate to="/declarations" replace />} />
           </Routes>
         )}
       </main>

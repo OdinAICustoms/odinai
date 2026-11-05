@@ -63,4 +63,22 @@ export async function postalSearch(q: string, limit = 20) {
     : query('SELECT * FROM postnummer WHERE poststed LIKE $1 ORDER BY poststed, postnr LIMIT $2', [s.toUpperCase() + '%', limit]);
 }
 
+/* ---------------- declaration code lists ---------------- */
+const openOn = `(valid_from IS NULL OR valid_from <= $1::date) AND (valid_to IS NULL OR valid_to >= $1::date)`;
+
+/** Customs offices in force on the date; `direction` IMPORT leaves out the export-only ones. */
+export const offices = (direction?: 'IMPORT' | 'EXPORT', date?: string) =>
+  query(`SELECT code, name, area, direction FROM ref_office WHERE ${openOn}
+      ${direction === 'IMPORT' ? "AND coalesce(direction, '') <> 'Utførsel'" : direction === 'EXPORT' ? "AND coalesce(direction, '') <> 'Innførsel'" : ''}
+      ORDER BY code`, [day(date)]);
+export const office = (code: string) => one('SELECT * FROM ref_office WHERE code = $1', [String(code ?? '').replace(/\D/g, '').slice(0, 6)]);
+export const procedures = (date?: string) => query(`SELECT code, text FROM ref_procedure WHERE ${openOn} ORDER BY code`, [day(date)]);
+export const procedure = (code: string) => one('SELECT * FROM ref_procedure WHERE code = $1', [String(code ?? '').trim()]);
+export const importRefs = (date?: string) => query(`SELECT code, text FROM ref_import_ref WHERE ${openOn} ORDER BY code`, [day(date)]);
+export const quota = (doc: string) => one('SELECT * FROM ref_quota WHERE doc = $1', [String(doc ?? '').trim()]);
+export const codeValidity = (code: string) => query('SELECT valid_from, valid_to FROM ref_code_validity WHERE code = $1', [normCode(code).padStart(8, '0')]);
+/** Is a reference list loaded at all? Rules that need it stay quiet until it is. */
+export const loaded = async (table: 'ref_office' | 'ref_procedure' | 'ref_quota' | 'tariff') =>
+  (await one<{ n: number }>(`SELECT COUNT(*) n FROM ${table}`))!.n > 0;
+
 export { displayCode };

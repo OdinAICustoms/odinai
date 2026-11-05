@@ -251,11 +251,68 @@ const postal: Dataset = {
   }
 };
 
+/* ------------------------------ declaration code lists (phase 2a) ------------------------------ */
+const trimmed = (v: unknown) => (v === undefined || v === null || String(v).trim() === '' ? null : String(v).trim());
+/**
+ * A simple code list: one array of records, replaced as a whole. `empty` lists (quotas, code validity)
+ * may legitimately be published with no rows; the others must have at least one.
+ */
+const codeList = (o: { id: string; label: string; dataset: string; path: string; table: string; columns: string[];
+  mapping: Record<string, string[]>; required: string[]; empty?: boolean; keyless?: boolean; row: (r: any) => unknown[] | null }): Dataset => ({
+  id: o.id, label: o.label, source: `data.toll.no: ${o.dataset}`,
+  count: c => n(c, `SELECT COUNT(*) n FROM ${o.table}`),
+  async load(f, c) {
+    const { data, url } = await f.ckanDataset(o.dataset);
+    const { rows } = recordsAt(data, o.path);
+    if (rows.length || !o.empty) validateMapping(rows, o.mapping, o.required);
+    await c.query(`DELETE FROM ${o.table}`);
+    const out = new Map<string, unknown[]>();
+    // The first column is the table's key (last record wins), except where the table has its own id.
+    for (const r of rows) { const v = o.row(r); if (v) out.set(o.keyless ? String(out.size) : String(v[0]), v); }
+    await bulkInsert(c, o.table, o.columns, [...out.values()]);
+    return { rowsSeen: rows.length, rowsWritten: out.size, url };
+  }
+});
+
+const offices = codeList({
+  id: 'tollsteder', label: 'Ekspedisjonsenheter (rubrikk A)', dataset: 'ekspedisjonsenhet', path: '$.ekspedisjonsenheter', table: 'ref_office',
+  columns: ['code', 'name', 'area', 'direction', 'valid_from', 'valid_to'],
+  mapping: { code: ['ekspedisjonsenhetskode'], name: ['ekspedisjonsenhetnavn'] }, required: ['code', 'name'],
+  row: r => { const code = String(r.ekspedisjonsenhetskode ?? '').replace(/\D/g, ''); return code.length === 6
+    ? [code, String(r.ekspedisjonsenhetnavn ?? '').trim(), trimmed(r.fagomraade), trimmed(r.retning), dateOrNull(r.fomdato), dateOrNull(r.tomdato)] : null; }
+});
+const procedures = codeList({
+  id: 'prosedyrer', label: 'Prosedyrekoder (rubrikk 37)', dataset: 'prosedyrekode', path: '$.prosedyre', table: 'ref_procedure',
+  columns: ['code', 'text', 'valid_from', 'valid_to'],
+  mapping: { code: ['prosedyrekode'], text: ['prosedyrekodebeskrivelse'] }, required: ['code'],
+  row: r => { const code = String(r.prosedyrekode ?? '').trim(); return /^\d{4}$/.test(code) ? [code, trimmed(r.prosedyrekodebeskrivelse), dateOrNull(r.fomdato), dateOrNull(r.tomdato)] : null; }
+});
+const importRefs = codeList({
+  id: 'referansekoder', label: 'Referansekoder ved innførsel (rubrikk 44)', dataset: 'innfoerselsreferanse', path: '$.referanser', table: 'ref_import_ref',
+  columns: ['code', 'text', 'valid_from', 'valid_to'],
+  mapping: { code: ['kode'], text: ['beskrivelse'] }, required: ['code'],
+  row: r => { const code = upperCode(r.kode); return code ? [code, trimmed(r.beskrivelse), dateOrNull(r.fomdato), dateOrNull(r.tomdato)] : null; }
+});
+const quotas = codeList({
+  id: 'tollkvoter', label: 'Tollkvoter (rubrikk 39)', dataset: 'tollkvote', path: '$.tollkvoter', table: 'ref_quota', empty: true,
+  columns: ['doc', 'landgruppe', 'max_qty', 'used_qty', 'unit', 'unit_text', 'codes', 'valid_from', 'valid_to'],
+  mapping: { doc: ['dokumentnummer'], codes: ['varenumre'] }, required: ['doc'],
+  row: r => { const doc = trimmed(r.dokumentnummer); return doc ? [doc, trimmed(r.landgruppekode), decimal(r.maksMengde), decimal(r.avskrevetMengde), trimmed(r.mengdeenhet),
+    trimmed(r.mengdeenhetBeskrivelse), (Array.isArray(r.varenumre) ? r.varenumre : []).map(padCode).filter((x: string) => x.length === 8), dateOrNull(r.fomdato), dateOrNull(r.tomdato)] : null; }
+});
+const codeValidity = codeList({
+  id: 'datogyldighet', label: 'Datogyldighet på varenummer', dataset: 'datogyldighetforvare', path: '$.vare', table: 'ref_code_validity', empty: true, keyless: true,
+  columns: ['code', 'valid_from', 'valid_to'],
+  mapping: { code: ['id', 'varenummer'] }, required: ['code'],
+  row: r => { const code = padCode(pick(r, ['id', 'varenummer'])); return code.length === 8 ? [code, dateOrNull(r.fomdato), dateOrNull(r.tomdato)] : null; }
+});
+
 export const DATASETS: Dataset[] = [
   tariff,
   rates('tollsatser', 'tollavgiftssats', 'TL1', 'Tollsatser (TL1)'),
   rates('rt100-satser', 'raavaretollavgiftssats', 'RT100', 'Råvaretollavgift (RT100)'),
-  groups, restrictions, errors, fx, postal
+  groups, restrictions, errors, fx, postal,
+  offices, procedures, importRefs, quotas, codeValidity
 ];
 export const datasetById = (id: string) => DATASETS.find(d => d.id === id);
 export { normCode };

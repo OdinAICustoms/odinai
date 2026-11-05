@@ -34,6 +34,14 @@ export function PartnerPicker({ id, value, onPick, exclude, placeholder }: { id:
   );
 }
 
+/** Search the product register (optionally one client's products); calls onPick with the product. */
+export function ProductPicker({ id, exclude, ownerId, onPick, placeholder }: { id: string; exclude?: string; ownerId?: string | null; onPick: (id: string, p: any) => void; placeholder?: string }) {
+  const [q, setQ] = useState(''), [rows, setRows] = useState<any[]>([]);
+  useEffect(() => { const t = setTimeout(() => { if (q.trim().length >= 2) api('/products?' + new URLSearchParams({ q, ...(ownerId ? { owner: ownerId } : {}) })).then(r => setRows(r.filter((x: any) => x.id !== exclude))).catch(() => {}); }, 250); return () => clearTimeout(t); }, [q]);
+  return <><input id={id} list={id + '-l'} value={q} autoComplete="off" placeholder={placeholder ?? T('Søk produkt')} onChange={e => { setQ(e.target.value); const h = rows.find(r => `${r.product_no} ${r.name}` === e.target.value); if (h) onPick(h.id, h); }} />
+    <datalist id={id + '-l'}>{rows.map(r => <option key={r.id} value={`${r.product_no} ${r.name}`} />)}</datalist></>;
+}
+
 /** A grid of fields bound to one object. */
 export function Fields({ spec, value, onChange, idPrefix }: { spec: FieldSpec[]; value: Record<string, any>; onChange: (v: Record<string, any>) => void; idPrefix: string }) {
   const countries = useCountries();

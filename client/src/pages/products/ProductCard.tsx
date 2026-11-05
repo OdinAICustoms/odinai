@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api, type Me } from '../../api';
 import { T, fmtDateTime, locale } from '../../i18n';
-import { Fields, Findings } from '../../components/Form';
+import { Fields, Findings, ProductPicker } from '../../components/Form';
 import { DocList, Upload } from '../../components/Docs';
 import { NewRtPermit, RtPermitView } from '../../components/Rt';
 import { PSTATUS, pPill, fmtCode } from './ProductList';
@@ -122,13 +122,6 @@ function General({ p, me, can, act }: { p: any; me: Me; can: boolean; act: (fn: 
       </div>
     </div>
   );
-}
-
-function ProductPicker({ id, exclude, ownerId, onPick }: { id: string; exclude?: string; ownerId?: string; onPick: (id: string) => void }) {
-  const [q, setQ] = useState(''), [rows, setRows] = useState<any[]>([]);
-  useEffect(() => { const t = setTimeout(() => { if (q.trim().length >= 2) api('/products?' + new URLSearchParams({ q, ...(ownerId ? { owner: ownerId } : {}) })).then(r => setRows(r.filter((x: any) => x.id !== exclude))); }, 250); return () => clearTimeout(t); }, [q]);
-  return <><input id={id} list={id + '-l'} value={q} autoComplete="off" placeholder={T('Søk produkt')} onChange={e => { setQ(e.target.value); const h = rows.find(r => `${r.product_no} ${r.name}` === e.target.value); if (h) onPick(h.id); }} />
-    <datalist id={id + '-l'}>{rows.map(r => <option key={r.id} value={`${r.product_no} ${r.name}`} />)}</datalist></>;
 }
 
 function Identifiers({ p, can, act }: { p: any; can: boolean; act: (fn: () => Promise<any>) => Promise<boolean> }) {
