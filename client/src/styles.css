@@ -206,3 +206,14 @@ table.items tr.sel td { background: var(--brand-light); }
 .bulk { align-items: center; }
 .bulk select { min-width: 160px !important; }
 th.num, td.num { text-align: right; }
+
+/* calculation (phase 2b) */
+.calcpanel dd.num, .kv dd.num { text-align: right; font-variant-numeric: tabular-nums; }
+.b12row { display: grid; grid-template-columns: 110px minmax(150px, 1.4fr) 110px 110px 150px minmax(120px, 1fr) auto; gap: 6px; align-items: center; }
+.b12row select { min-width: 0 !important; width: 100% !important; }
+@media (max-width: 900px) { .b12row { grid-template-columns: 1fr 1fr; } }
+.itemcalc { margin-top: 12px; }
+table.t.small td { padding: 4px 8px; font-size: 12.5px; }
+tr.sum td { font-weight: 700; background: var(--head); }
+.levyrow { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(220px, 1.5fr) 160px; gap: 6px; align-items: center; margin-bottom: 6px; }
+.levyrow select { min-width: 0 !important; width: 100% !important; }

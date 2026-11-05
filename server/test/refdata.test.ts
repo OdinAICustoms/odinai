@@ -53,10 +53,15 @@ const IMPORT_REFS = { referanser: [{ kode: 'DEL', beskrivelse: 'Delsending', fom
 const QUOTAS = { tollkvoter: [{ dokumentnummer: 'T010126B', landgruppekode: 'TEF', maksMengde: '2000000', avskrevetMengde: '0', mengdeenhet: 'V',
   varenumre: ['06021021', '6021024'], fomdato: '2026-04-01', tomdato: '2026-12-31' }] };
 const CODE_VALIDITY = { vare: [] };
+const LEVIES = { varer: [{ id: '17011490', avgiftsatser: [{ landgruppe: 'ALLE', avgiftstyper: [
+  { avgiftstype: 'MV', avgiftstypebeskrivelse: 'Merverdiavgift', avgiftsgrupper: [{ avgiftsgruppe: '2', avgiftsgruppebeskrivelse: 'Lav sats', sats: '15', enhet: 'P', fomdato: '2015-01-01', tomdato: '' }] },
+  { avgiftstype: 'su', avgiftstypebeskrivelse: 'Sukkeravgift', avgiftsgrupper: [{ avgiftsgruppe: '100', sats: '213,07', oresats: 'true', enhet: 'KGM', enhetbeskrivelse: 'Kilogram', fomdato: '2026-01-01', tomdato: '' }] }] }] }] };
+const ADD_DUTY = { varer: [{ id: '76011000', avtalesatser: [{ landgruppe: 'TRB', sats: [{ satsVerdi: '50', satsEnhet: 'P', satsEnhetBeskrivelse: 'Prosent', fomdato: '2026-07-01', tomdato: '' }] }] }] };
 
 const payloads: Record<string, unknown> = { tolltariffstruktur: STRUCT, varenummer: VARENUMMER, tollavgiftssats: TL1, raavaretollavgiftssats: RT,
   landgruppe: GROUPS, medlemsland: MEMBERS, innfoerselsrestriksjon: RESTR, feilmelding: ERRORS, valutakurs: FX,
-  ekspedisjonsenhet: OFFICES, prosedyrekode: PROCEDURES, innfoerselsreferanse: IMPORT_REFS, tollkvote: QUOTAS, datogyldighetforvare: CODE_VALIDITY };
+  ekspedisjonsenhet: OFFICES, prosedyrekode: PROCEDURES, innfoerselsreferanse: IMPORT_REFS, tollkvote: QUOTAS, datogyldighetforvare: CODE_VALIDITY,
+  innfoerselsavgift: LEVIES, tilleggstollavgiftssats: ADD_DUTY };
 const fake = (over: Record<string, unknown> = {}): Fetchers => ({
   ckanDataset: async id => { const p = { ...payloads, ...over }[id]; if (!p) throw new Error(`no fixture ${id}`); return { data: p, url: `fixture:${id}` }; },
   textFile: async () => ({ text: POSTAL, url: 'fixture:postnummer' })
@@ -106,7 +111,7 @@ describe('loading and looking up', () => {
     const out = await runAll({ fetchers: fake() });
     expect(out.map(o => `${o.dataset}:${o.status}`)).toEqual(['tolltariff:OK', 'tollsatser:OK', 'rt100-satser:OK', 'landgrupper:OK',
       'restriksjoner:OK', 'feilmeldinger:OK', 'valutakurser:OK', 'postnummer:OK',
-      'tollsteder:OK', 'prosedyrer:OK', 'referansekoder:OK', 'tollkvoter:OK', 'datogyldighet:OK']);
+      'tollsteder:OK', 'prosedyrer:OK', 'referansekoder:OK', 'tollkvoter:OK', 'datogyldighet:OK', 'avgifter:OK', 'tilleggstoll:OK']);
     const st = await status();
     expect(st.every(s => s.last?.status === 'OK' && s.lastOkAt)).toBe(true);
   });
@@ -159,6 +164,11 @@ describe('loading and looking up', () => {
     expect((await L.quota('T010126B'))!.codes).toEqual(['06021021', '06021024']);
     expect(await L.codeValidity('06021021')).toEqual([]);
   });
+  it('box 47 levies: a rate in øre is divided by 100, types upper-cased; additional duty per country group', async () => {
+    const lv = (await pool.query(`SELECT levy_type, levy_group, rate, unit FROM ref_import_levy WHERE code = '17011490' ORDER BY levy_type`)).rows;
+    expect(lv).toEqual([{ levy_type: 'MV', levy_group: 2, rate: '15', unit: 'P' }, { levy_type: 'SU', levy_group: 100, rate: '2.1307', unit: 'KGM' }]);
+    expect((await pool.query(`SELECT landgruppe, rate, unit, valid_from FROM ref_additional_duty`)).rows).toEqual([{ landgruppe: 'TRB', rate: '50', unit: 'P', valid_from: '2026-07-01' }]);
+  });
   it('postal codes: bad lines skipped, search by number and name', async () => {
     expect((await L.postalSearch('015'))[0].poststed).toBe('OSLO');
     expect((await L.postalSearch('berg'))[0].postnr).toBe('5003');
@@ -198,7 +208,7 @@ describe('API', () => {
     await admin.post('/auth/setup', { name: 'Ada Admin', email: 'ada@odin.test', password: PW });
     const st = await admin.get('/refdata/status');
     expect(st.status).toBe(200);
-    expect(st.body).toHaveLength(13);
+    expect(st.body).toHaveLength(15);
     expect((await admin.get('/refdata/offices?direction=IMPORT&date=2026-11-04')).body.map((o: any) => o.code)).toEqual(['300101']);
     expect((await admin.get('/refdata/tariff/21039099?date=2026-11-04')).body.rtRequired).toBe(true);
     expect((await admin.get('/refdata/tariff/99999999')).status).toBe(404);

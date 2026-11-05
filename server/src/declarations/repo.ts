@@ -6,6 +6,7 @@ import * as docs from '../documents.js';
 import * as L from '../refdata/lookup.js';
 import * as C from './codes.js';
 import { check, summary, type PartyInfo, type RuleContext } from './rules.js';
+import { calculate, B12_TYPES, B12_BASES, type CalcContext } from './calc.js';
 
 /**
  * Import declarations: the header (SAD boxes as columns) and its goods items. Only a DRAFT or RETURNED
@@ -18,7 +19,7 @@ const str = (v: unknown) => (v === undefined || v === null || String(v).trim() =
 const isUuid = (v: unknown) => /^[0-9a-f-]{36}$/i.test(String(v ?? ''));
 
 /* ------------------------------ input cleaning ------------------------------ */
-type Kind = 'uuid' | 'text' | 'date' | 'num' | 'int' | 'bool' | 'docs' | { enum: string[] } | { re: RegExp; msg: string; upper?: boolean; digits?: boolean };
+type Kind = 'uuid' | 'text' | 'date' | 'num' | 'int' | 'bool' | 'docs' | 'levies' | 'box12' |{ enum: string[] } | { re: RegExp; msg: string; upper?: boolean; digits?: boolean };
 const country = { re: /^[A-Z]{2}$/, msg: 'må være en landkode med to bokstaver', upper: true };
 const HEADER: Record<string, Kind> = {
   client_id: 'uuid', exporter_id: 'uuid', importer_id: 'uuid', declarant_id: 'uuid',
@@ -27,15 +28,18 @@ const HEADER: Record<string, Kind> = {
   container: 'bool', container_nos: 'text', transport_mode: { enum: Object.keys(C.TRANSPORT_MODES) },
   incoterms: { enum: C.INCOTERMS }, incoterms_place: 'text', invoice_total: 'num', currency: { re: /^[A-Z]{3}$/, msg: 'må være en valutakode med tre bokstaver', upper: true },
   transaction_type: { enum: Object.keys(C.TRANSACTION_TYPES) }, goods_location: 'text', prev_doc: 'text', warehouse_id: 'text',
-  reexport_deadline: 'date', payment_method: { enum: Object.keys(C.PAYMENT_METHODS) }, payment_account: 'text', docs: 'docs', notes: 'text'
+  reexport_deadline: 'date', payment_method: { enum: Object.keys(C.PAYMENT_METHODS) }, payment_account: 'text', docs: 'docs', notes: 'text',
+  value_details: 'box12'
 };
 const ITEM: Record<string, Kind> = {
   product_id: 'uuid', description: 'text', packages: 'int', package_kind: 'text', marks: 'text',
   code: { re: /^\d{8}$/, msg: 'må ha 8 siffer', digits: true }, origin: country, preference: { enum: Object.keys(C.PREFERENCES) },
   procedure: { re: /^\d{4}$/, msg: 'har fire siffer', digits: true }, nat_procedure: 'text', quota: 'text',
   gross_kg: 'num', net_kg: 'num', supp_qty: 'num', price: 'num', valuation_method: { enum: Object.keys(C.VALUATION_METHODS) },
-  freight: 'num', add_amount: 'num', ded_amount: 'num', docs: 'docs', article_no: 'text', gtin: 'text'
+  freight: 'num', add_amount: 'num', ded_amount: 'num', docs: 'docs', article_no: 'text', gtin: 'text', levies: 'levies'
 };
+const JSON_COLS = new Set(['docs', 'source', 'levies', 'value_details']);
+const jsonOr = (k: string, v: unknown) => (JSON_COLS.has(k) ? JSON.stringify(v) : v);
 const LABEL: Record<string, string> = {
   office: 'Rubrikk A', dispatch_country: 'Rubrikk 15', transport_nat: 'Rubrikk 21', currency: 'Rubrikk 22a', code: 'Rubrikk 33',
   origin: 'Rubrikk 34', procedure: 'Rubrikk 37', invoice_total: 'Rubrikk 22', price: 'Rubrikk 42', net_kg: 'Rubrikk 38', gross_kg: 'Rubrikk 35'
@@ -56,12 +60,40 @@ function cleanDocs(v: unknown) {
   });
 }
 
+/** Excise choices on a goods item: [{type, group | 'NA', qty}]. */
+function cleanLevies(v: unknown) {
+  if (v == null) return [];
+  if (!Array.isArray(v)) fail(400, 'Avgiftsvalg må være en liste.');
+  return (v as any[]).filter(x => str(x?.type)).map(x => {
+    const group = str(x.group);
+    const qty = str(x.qty) == null ? null : Number(String(x.qty).replace(/\s/g, '').replace(',', '.'));
+    if (qty != null && (!Number.isFinite(qty) || qty < 0)) fail(400, 'Avgiftsmengden må være et tall som er null eller større.');
+    return { type: String(x.type).toUpperCase().slice(0, 4), group: group ? group.toUpperCase().slice(0, 10) : null, qty };
+  });
+}
+/** Box 12 lines: [{kind, type, amount, currency, basis, text}]. */
+function cleanBox12(v: unknown) {
+  if (v == null) return [];
+  if (!Array.isArray(v)) fail(400, 'Rubrikk 12 må være en liste.');
+  return (v as any[]).map(x => {
+    const amount = Number(String(x?.amount ?? '').replace(/\s/g, '').replace(',', '.'));
+    if (!Number.isFinite(amount) || amount < 0) fail(400, 'Rubrikk 12: beløpet må være et tall som er null eller større.');
+    const kind = String(x?.kind ?? '').toUpperCase();
+    if (kind !== 'ADD' && kind !== 'DED') fail(400, 'Rubrikk 12: velg tillegg eller fradrag.');
+    return { kind, type: String(x.type ?? '').toUpperCase(), amount, currency: String(x.currency ?? 'INV').toUpperCase() === 'NOK' ? 'NOK' : 'INV',
+      basis: ['GROSS', 'NET', 'VALUE'].includes(String(x.basis ?? '').toUpperCase()) ? String(x.basis).toUpperCase() : (['FRAKT', 'FRAKT_INNLAND'].includes(String(x.type ?? '').toUpperCase()) ? 'GROSS' : 'VALUE'),
+      text: str(x.text) };
+  });
+}
+
 function clean(b: any, spec: Record<string, Kind>) {
   const o: Record<string, any> = {};
   for (const [k, kind] of Object.entries(spec)) {
     if (b[k] === undefined) continue;
     const v = b[k], s = str(v), label = LABEL[k] ?? k;
     if (kind === 'docs') { o[k] = cleanDocs(v); continue; }
+    if (kind === 'levies') { o[k] = cleanLevies(v); continue; }
+    if (kind === 'box12') { o[k] = cleanBox12(v); continue; }
     if (kind === 'bool') { o[k] = v === true || v === 'true' || v === 1; continue; }
     if (s == null) { o[k] = null; continue; }
     if (kind === 'text') o[k] = s.slice(0, 500);
@@ -110,8 +142,10 @@ export async function card(id: string) {
   const [client, exporter, importer, declarant] = await Promise.all([party(d.client_id), party(d.exporter_id), party(d.importer_id), party(d.declarant_id)]);
   const users = await query('SELECT id, name FROM users WHERE id = ANY($1)', [[d.created_by, d.updated_by].filter(Boolean)]);
   const name = (u: string | null) => users.find(x => x.id === u)?.name ?? null;
-  const issues = check(await context(d, its));
+  const cx = await context(d, its);
+  const issues = check(cx);
   return {
+    calc: cx.calc,
     ...d, items: its, parties: { client, exporter, importer, declarant }, box1: C.box1Column1(d.dispatch_country),
     created_by_name: name(d.created_by), updated_by_name: name(d.updated_by),
     editable: C.EDITABLE.includes(d.status), documents: await docs.listFor('DECLARATION', id), issues, check: summary(issues)
@@ -159,6 +193,41 @@ async function partyInfo(id: string | null, date: string): Promise<PartyInfo | n
   };
 }
 
+/** Everything the calculation needs for the declaration date (src/declarations/calc.ts). */
+export async function calcContext(d: any, its: any[]): Promise<CalcContext> {
+  const date = d.decl_date ?? today();
+  const codes = [...new Set(its.map(i => i.code).filter(Boolean))] as string[];
+  const inForce = `(valid_from IS NULL OR valid_from <= $2::date) AND (valid_to IS NULL OR valid_to >= $2::date)`;
+  const rates: CalcContext['rates'] = {};
+  for (const r of await query(`SELECT code, landgruppe, duty_code, rate_value, rate_unit, unit_code, unit_text FROM tariff_rate
+      WHERE code = ANY($1) AND ${inForce} ORDER BY valid_from DESC`, [codes, date])) {
+    const list = (rates[r.code] ??= []);
+    if (!list.some(x => x.landgruppe === r.landgruppe && x.duty_code === r.duty_code)) list.push(r);
+  }
+  const origins = [...new Set(its.map(i => i.origin).filter(Boolean))] as string[];
+  const groupsOf: CalcContext['groupsOf'] = {};
+  for (const r of await query(`SELECT country_code, landgruppe FROM landgruppe_country WHERE country_code = ANY($1) AND ${inForce}`, [origins, date]))
+    (groupsOf[r.country_code] ??= []).push(r.landgruppe);
+  const levies: CalcContext['levies'] = {};
+  for (const r of await query(`SELECT code, levy_type, levy_type_text, levy_group, levy_group_text, rate, unit, unit_text FROM ref_import_levy
+      WHERE code = ANY($1) AND ${inForce} ORDER BY levy_type, levy_group, valid_from DESC`, [codes, date])) (levies[r.code] ??= []).push(r);
+  const additional: CalcContext['additional'] = {};
+  for (const r of await query(`SELECT code, landgruppe, rate, unit, unit_text FROM ref_additional_duty WHERE code = ANY($1) AND ${inForce}`, [codes, date]))
+    (additional[r.code] ??= []).push(r);
+  const permits: CalcContext['permits'] = {};
+  for (const r of await query(`SELECT id, product_id, permit_no, product_name, holder_org_no, rate_tall, skriv_tall, rate_toes, skriv_toes, valid_from, valid_to
+      FROM rt_permit WHERE product_id = ANY($1) AND active ORDER BY valid_to DESC`, [[...new Set(its.map(i => i.product_id).filter(Boolean))]]))
+    (permits[r.product_id] ??= []).push(r);
+  const importerOrg = d.importer_id ? (await one(`SELECT replace(identifier_value, ' ', '') v FROM bp_identifier WHERE partner_id = $1 AND identifier_type IN ('ORG_NO', 'EORI')
+      AND status = 'ACTIVE' ORDER BY (identifier_type = 'ORG_NO') DESC, is_primary DESC LIMIT 1`, [d.importer_id]))?.v ?? null : null;
+  const fx = !d.currency ? null : d.currency === 'NOK' ? 1 : (await L.fxRate(d.currency, date))?.rate;
+  return {
+    date, currency: d.currency ?? null, fx: fx == null ? null : Number(fx), declType: d.decl_type ?? null, groupsOf, rates, levies,
+    levyDataLoaded: !!(await one('SELECT 1 FROM ref_import_levy LIMIT 1')), additional, permits, importerOrg,
+    box12: Array.isArray(d.value_details) ? d.value_details : []
+  };
+}
+
 export async function context(d: any, its: any[]): Promise<RuleContext> {
   const date = d.decl_date ?? today();
   const codes = [...new Set(its.map(i => i.code).filter(Boolean))] as string[];
@@ -198,7 +267,7 @@ export async function context(d: any, its: any[]): Promise<RuleContext> {
     proceduresLoaded: await L.loaded('ref_procedure'), procedures, quotas,
     currencyKnown: !d.currency || d.currency === 'NOK' || !!(await one('SELECT 1 FROM currency WHERE code = $1', [d.currency])),
     fxFound: !d.currency || !!(await L.fxRate(d.currency, date)),
-    credit, products
+    credit, products, calc: calculate(its, await calcContext(d, its))
   };
 }
 
@@ -249,7 +318,7 @@ async function insertItem(c: Db, declId: string, o: Record<string, any>, lineNo:
   const cols = Object.keys(o);
   const r = await c.query(`INSERT INTO declaration_item (declaration_id, line_no${cols.map(k => ', ' + k).join('')})
       VALUES ($1, $2${cols.map((_, i) => `, $${i + 3}`).join('')}) RETURNING id`,
-    [declId, lineNo, ...cols.map(k => (k === 'docs' || k === 'source' ? JSON.stringify(o[k]) : o[k]))]);
+    [declId, lineNo, ...cols.map(k => jsonOr(k, o[k]))]);
   return r.rows[0].id as string;
 }
 
@@ -269,7 +338,7 @@ export async function create(req: Request, b: any = {}, from = 'MANUAL') {
     const cols = Object.keys(o);
     const d = (await c.query(`INSERT INTO declaration (created_from, created_by, updated_by${cols.map(k => ', ' + k).join('')})
         VALUES ($1, $2, $2${cols.map((_, i) => `, $${i + 3}`).join('')}) RETURNING id, decl_no`,
-      [from, who(req), ...cols.map(k => (k === 'docs' ? JSON.stringify(o[k]) : o[k]))])).rows[0];
+      [from, who(req), ...cols.map(k => jsonOr(k, o[k]))])).rows[0];
     let n = 0;
     for (const l of lines) await insertItem(c, d.id, fromProduct(l, await requireProduct(l.product_id, c)), ++n);
     await audit(req, { action: 'DECLARATION_CREATED', objectType: 'DECLARATION', objectId: d.id, after: o, detail: { declNo: d.decl_no, from, items: n } }, c);
@@ -289,7 +358,7 @@ export async function update(req: Request, id: string, b: any) {
   await tx(async c => {
     const set = changes.map(([k], i) => `${k} = $${i + 3}`).join(', ');
     await c.query(`UPDATE declaration SET ${set}, version = version + 1, updated_at = now(), updated_by = $2 WHERE id = $1`,
-      [id, who(req), ...changes.map(([k, v]) => (k === 'docs' ? JSON.stringify(v) : v))]);
+      [id, who(req), ...changes.map(([k, v]) => jsonOr(k, v))]);
     await audit(req, { action: 'DECLARATION_CHANGED', objectType: 'DECLARATION', objectId: id,
       before: Object.fromEntries(changes.map(([k]) => [k, d[k]])), after: Object.fromEntries(changes) }, c);
   });
@@ -326,7 +395,7 @@ export async function updateItem(req: Request, id: string, itemId: string, b: an
   if (!changes.length) return card(id);
   await tx(async c => {
     await c.query(`UPDATE declaration_item SET ${changes.map(([k], i) => `${k} = $${i + 2}`).join(', ')} WHERE id = $1`,
-      [itemId, ...changes.map(([k, v]) => (k === 'docs' ? JSON.stringify(v) : v))]);
+      [itemId, ...changes.map(([k, v]) => jsonOr(k, v))]);
     await bump(c, id, who(req));
     await audit(req, { action: 'DECLARATION_ITEM_CHANGED', objectType: 'DECLARATION', objectId: id,
       before: Object.fromEntries(changes.map(([k]) => [k, it[k]])), after: Object.fromEntries(changes), detail: { item: itemId, line: it.line_no } }, c);
@@ -420,7 +489,7 @@ export async function storeDocument(req: Request, id: string, b: any) {
 export const meta = async () => ({
   statuses: C.STATUSES, declTypes: C.DECL_TYPES, incoterms: C.INCOTERMS, transactionTypes: C.TRANSACTION_TYPES, transportModes: C.TRANSPORT_MODES,
   preferences: C.PREFERENCES, valuationMethods: C.VALUATION_METHODS, paymentMethods: C.PAYMENT_METHODS, declDocCodes: C.DECL_DOC_CODES,
-  itemDocCodes: C.ITEM_DOC_CODES, bulkFields: BULK, euEftaEea: C.EU_EFTA_EEA
+  itemDocCodes: C.ITEM_DOC_CODES, bulkFields: BULK, euEftaEea: C.EU_EFTA_EEA, box12Types: B12_TYPES, box12Bases: B12_BASES
 });
 
 /** Box 48 choices: credit accounts of the parties (the customs debtor in box 8/2 first, then the representative in box 14). */

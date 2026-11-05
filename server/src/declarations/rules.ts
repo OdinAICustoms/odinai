@@ -7,6 +7,7 @@
  * The calculation rules (preference rates, RT100, levies, box 12, payment required) come with phase 2b.
  */
 import { CHED_DOCS, DECL_DOC_CODES, NO_ACTIVE_MEANS, PREF_CLAIM_CODES, PREF_PROOF_DOCS, BOX_ROLES } from './codes.js';
+import { B12_BASES, B12_TYPES, type DeclCalc } from './calc.js';
 
 export type Level = 'err' | 'warn' | 'info';
 export interface Issue { lvl: Level; box: string; rule: string; msg: string; item?: number; field?: string }
@@ -35,6 +36,8 @@ export interface RuleContext {
   fxFound: boolean;
   credit?: { account: string; payment_type: string; status: string; valid_to: string | null; partner_name: string } | null;
   products: Record<string, { status: string; product_no: string }>;
+  /** The calculation (phase 2b); rules that need it stay quiet without it. */
+  calc?: DeclCalc;
 }
 
 const blank = (v: unknown) => v === undefined || v === null || String(v).trim() === '';
@@ -235,7 +238,97 @@ export function check(cx: RuleContext): Issue[] {
     if (temp.length) add('warn', '37', 'PROC_NOT_BOX1', `Rubrikk 37: varepost ${list(temp)} har midlertidig innførsel (5xxx), men rubrikk 1 er 4 (fri disponering). Kontroller rubrikk 1.`);
   }
 
+  if (cx.calc) calcRules(cx, cx.calc, add);
   return out;
+}
+
+const kr = (n: number) => n.toLocaleString('nb-NO', { maximumFractionDigits: 2 });
+const rateText = (n: number | null) => (n == null ? '—' : n.toLocaleString('nb-NO', { minimumFractionDigits: 2, maximumFractionDigits: 4 }));
+
+/** Rules on the calculation: preference, RT100, levies, box 12, payment (ODIN LINK validation.js, rt.js, saeravgift.js, box12.js). */
+function calcRules(cx: RuleContext, calc: DeclCalc, add: (lvl: Level, box: string, rule: string, msg: string, extra?: Partial<Issue>) => void) {
+  const d = cx.decl;
+  if (!calc.levyDataLoaded && cx.items.length)
+    add('warn', '47', 'LEVY_DATA_MISSING', 'Avgiftsdata (MVA, forskningsavgift, særavgifter) er ikke lastet. MVA er beregnet med 25 % og forskningsavgift er ikke tatt med. Oppdater «Avgifter ved innførsel» under Referansedata.');
+  for (const l of calc.lines) {
+    const it = cx.items.find(x => Number(x.line_no) === l.line_no) ?? {};
+    const n = l.line_no;
+    const I = (lvl: Level, box: string, rule: string, msg: string, field?: string) => add(lvl, box, rule, `Varepost ${n}: ${msg}`, { item: n, field });
+    const docs: any[] = [...(Array.isArray(it.docs) ? it.docs : []), ...(Array.isArray(d.docs) ? d.docs : [])];
+    if (!l.code) continue;
+    const pref = String(it.preference ?? '').toUpperCase();
+
+    /* Box 36: a claimed preference needs a real preferential rate for the origin. */
+    if (PREF_CLAIM_CODES.includes(pref) && l.tl1.source === 'ORDINARY_NO_PREFERENCE_RATE')
+      I('err', '36', 'PREF_NO_AGREEMENT', `preferansekode ${pref} kreves, men det finnes ingen preferansesats for opprinnelse ${it.origin || '—'} på varenummer ${l.code}.`, 'preference');
+    if (l.unclaimedPref && docs.some(x => ['SER', 'U045'].includes(String(x.code).toUpperCase())) && (l.tl1.rate ?? 0) > l.unclaimedPref.rate)
+      I('warn', '36', 'PREF_UNCLAIMED', `opprinnelse ${it.origin} har opprinnelsesbevis og en lavere preferansesats (${l.unclaimedPref.landgruppe}) — tollen kan muligens reduseres (rubrikk 36 er ${pref || 'tom'}).`, 'preference');
+    if (l.tl1.source === 'NO_RATE') I('warn', '47', 'RATE_UNRESOLVED', `ingen tollsats funnet for ${l.code} — tollen (A00) er ikke beregnet.`, 'code');
+    if (l.tl1.manual) I('warn', '47', 'SPECIFIC_NOT_KG', `tollen er spesifikk, men angitt i ${l.tl1.unitText || 'en annen enhet enn kg'}. Den beregnes ikke automatisk; kontroller manuelt.`, 'code');
+
+    /* RT100. */
+    const rt = l.rt;
+    if (rt) {
+      const name = rt.permit?.product_name ?? '';
+      if (rt.status === 'MISSING')
+        I('err', '47', 'RT_MISSING', `varenummer ${l.code} har RT100 råvaretollavgift, men ingen tillatelse ble funnet for produktet${rt.sentinel ? ', og Tolletaten publiserer bare en plassholdersats. Vedtak om nedsatt sats fra Landbruksdirektoratet kreves' : ''}.`, 'product_id');
+      if (rt.sentinel && rt.variant) I('err', '47', 'RT_RATE_PLACEHOLDER', `${rt.variant}-satsen på RT-tillatelsen for ${name} er en plassholderverdi, ikke en reell sats. Rett tillatelsen etter vedtaksbrevet.`, 'product_id');
+      const ps = rt.status === 'PUBLISHED_RATE' || rt.status === 'MISSING' ? rt.permitStatus : rt.status;
+      if (ps === 'EXPIRED') I('err', '47', 'RT_EXPIRED', `RT-tillatelsen for ${name} utløp ${rt.permit?.valid_to}. Nytt vedtak fra Landbruksdirektoratet kreves.`, 'product_id');
+      if (ps === 'NOT_YET_VALID') I('err', '47', 'RT_NOT_YET_VALID', `RT-tillatelsen for ${name} gjelder fra ${rt.permit?.valid_from}, etter deklarasjonsdatoen.`, 'product_id');
+      if (ps === 'EXPIRING') I('warn', '47', 'RT_EXPIRING', `RT-tillatelsen for ${name} utløper ${rt.permit?.valid_to}. Start fornyelsen nå.`, 'product_id');
+      if (rt.holder === 'MISMATCH') I('err', '47', 'RT_HOLDER_MISMATCH', `RT-tillatelsen for ${name} innehas av en annen virksomhet enn importøren i rubrikk 8. En nedsatt sats gis til en navngitt virksomhet og kan ikke overdras.`, 'product_id');
+      if (rt.holder === 'UNRECORDED') I('warn', '47', 'RT_HOLDER_UNRECORDED', `RT-tillatelsen for ${name} mangler innehaverens organisasjonsnummer. Før det inn fra vedtaksbrevet.`, 'product_id');
+      if (rt.holder === 'NO_IMPORTER_ORG') I('warn', '8', 'RT_IMPORTER_NO_ORG', 'importøren i rubrikk 8 har ikke organisasjonsnummer, så innehaveren av RT-tillatelsen kan ikke kontrolleres.', 'product_id');
+      if (rt.variant && !rt.confident) I('warn', '47', 'RT_VARIANT_UNCERTAIN', `opprinnelsen bestemmer ikke RT-satsvarianten. Den høyeste satsen (${rt.variant} ${rateText(rt.rate)}) er brukt — kontroller mot vedtaksbrevet.`, 'origin');
+      if (rt.status === 'PUBLISHED_RATE' && rt.amount > 0) {
+        const usk = docs.find(x => String(x.code).toUpperCase() === 'USK');
+        I('warn', '47', usk ? 'RT_USK_NOT_REGISTERED' : 'RT_FULL_RATE', usk
+          ? `rubrikk 44 viser USK ${usk.ref ?? ''}, men vedtaket er ikke registrert på produktet. RT100 er beregnet med full sats ${rateText(rt.rate)} kr/kg = ${kr(rt.amount)} kr. Registrer RT-tillatelsen på produktet.`
+          : `RT100 er beregnet med full publisert sats ${rateText(rt.rate)} kr/kg = ${kr(rt.amount)} kr. Har importøren vedtak om nedsatt sats (USK), registrer det som RT-tillatelse på produktet.`, 'product_id');
+      }
+      if (['VALID', 'EXPIRING', 'PUBLISHED_RATE'].includes(rt.status) && !(Number(it.net_kg) > 0))
+        I('err', '38', 'RT_NO_NET_MASS', 'RT100 beregnes per kilo, så nettovekten i rubrikk 38 må være større enn null.', 'net_kg');
+    }
+
+    /* Excise duties: a choice (group and quantity, or not applicable) per levy type on the code. */
+    const chosen: any[] = Array.isArray(it.levies) ? it.levies : [];
+    for (const t of l.levyTypes) {
+      const c = chosen.find(x => x?.type === t.type);
+      if (!c || c.group == null || c.group === '') I('warn', '47', 'LEVY_CHOICE', `varenummeret har ${t.type} (${t.text ?? ''}). Velg avgiftsgruppe og mengde, eller «Gjelder ikke».`, 'levies');
+      else if (c.group !== 'NA') {
+        const g = t.groups.find(x => x.group === String(c.group));
+        if (!g) I('err', '47', 'LEVY_GROUP', `${t.type}: avgiftsgruppe ${c.group} finnes ikke for varenummeret på deklarasjonsdatoen.`, 'levies');
+        else if (g.unit !== 'P' && !(Number(c.qty) > 0)) I('err', '47', 'LEVY_QTY', `${t.type} ${g.text ?? ''}: oppgi mengde (${(g.unitText ?? g.unit ?? '').toLowerCase()}).`, 'levies');
+      }
+    }
+    if (l.tillegg) I('info', '47', 'ADDITIONAL_DUTY', `tilleggstollavgift ${rateText(l.tillegg.rate)} ${l.tillegg.unit === 'P' ? '%' : 'kr/kg'} for opprinnelse ${it.origin} (landgruppe ${l.tillegg.landgruppe}).`, 'origin');
+    if (calc.levyDataLoaded && l.vat.amount === null) I('warn', '47', 'VAT_UNRESOLVED', 'ingen MVA-sats funnet for varenummeret.', 'code');
+  }
+
+  /* Box 12. */
+  const b12: any[] = Array.isArray(d.value_details) ? d.value_details : [];
+  b12.forEach((x, i) => {
+    const n = i + 1;
+    if (!x || !(x.kind in B12_TYPES)) add('err', '12', 'B12_KIND', `Rubrikk 12, linje ${n}: velg tillegg eller fradrag.`, { field: 'value_details' });
+    else if (!(x.type in B12_TYPES[x.kind as 'ADD' | 'DED'])) add('err', '12', 'B12_TYPE', `Rubrikk 12, linje ${n}: velg type.`, { field: 'value_details' });
+    if (!(Number(x?.amount) > 0)) add('err', '12', 'B12_AMOUNT', `Rubrikk 12, linje ${n}: beløpet må være større enn null.`, { field: 'value_details' });
+    if (x?.basis && !(x.basis in B12_BASES)) add('err', '12', 'B12_BASIS', `Rubrikk 12, linje ${n}: ukjent fordelingsnøkkel.`, { field: 'value_details' });
+    if (x?.type === 'ANDRE' && !String(x.text ?? '').trim()) add('warn', '12', 'B12_TEXT', `Rubrikk 12, linje ${n}: beskriv hva tillegget eller fradraget gjelder.`, { field: 'value_details' });
+  });
+  const a = calc.box12;
+  if (a.active && cx.items.length) {
+    if (a.bases.includes('VALUE') && !(a.valueTotal > 0)) add('err', '12', 'B12_NO_BASIS', 'Rubrikk 12 kan ikke fordeles: vareverdien (rubrikk 42) er null.', { field: 'value_details' });
+    if (a.bases.includes('GROSS') && !(a.grossTotal > 0)) add('err', '12', 'B12_NO_GROSS', 'Rubrikk 12 skal fordeles etter bruttovekt, men ingen vareposter har bruttovekt (rubrikk 35).', { field: 'value_details' });
+    if (a.bases.includes('NET') && !(a.netTotal > 0)) add('err', '12', 'B12_NO_NET', 'Rubrikk 12 skal fordeles etter nettovekt, men ingen vareposter har nettovekt (rubrikk 38).', { field: 'value_details' });
+    if (a.dedTotal > 0 && a.dedTotal >= a.valueTotal + a.addTotal) add('err', '12', 'B12_DED_TOO_LARGE', 'Rubrikk 12: fradragene er like store som eller større enn vareverdien med tillegg.', { field: 'value_details' });
+    const manual = cx.items.filter(it => Number(it.freight) > 0 || Number(it.add_amount) > 0 || Number(it.ded_amount) > 0).map(it => Number(it.line_no));
+    if (manual.length) add('warn', '45', 'B12_OVERRIDES_ITEM', `Rubrikk 12 er fylt ut og fordeles på alle vareposter; tillegg og fradrag ført på varepost ${list(manual)} brukes ikke.`);
+  }
+
+  /* Box 48: something to pay needs a payment method. */
+  if (calc.payable > 0 && !d.payment_method)
+    add('err', '48', 'PAYMENT_REQUIRED', `Toll og avgifter på ${kr(calc.payable)} kr skal betales — betalingsmåte må oppgis i rubrikk 48.`, { field: 'payment_method' });
 }
 
 export const summary = (issues: Issue[]) => ({

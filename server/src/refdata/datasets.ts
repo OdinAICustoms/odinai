@@ -307,12 +307,63 @@ const codeValidity = codeList({
   row: r => { const code = padCode(pick(r, ['id', 'varenummer'])); return code.length === 8 ? [code, dateOrNull(r.fomdato), dateOrNull(r.tomdato)] : null; }
 });
 
+/* ------------------------------ box 47 levies and additional duty (phase 2b) ------------------------------ */
+// "øresats = true": the value is published in øre and is divided by 100 (ODIN LINK src/import-avgift.js).
+const levies: Dataset = {
+  id: 'avgifter', label: 'Avgifter ved innførsel (MVA, forskningsavgift, særavgifter)', source: 'data.toll.no: innfoerselsavgift',
+  count: c => n(c, 'SELECT COUNT(*) n FROM ref_import_levy'),
+  async load(f, c) {
+    const { data, url } = await f.ckanDataset('innfoerselsavgift');
+    const { rows } = recordsAt(data, '$.varer');
+    validateMapping(rows, { code: ['id'], rates: ['avgiftsatser'] }, ['code', 'rates']);
+    await c.query('DELETE FROM ref_import_levy');
+    const out: unknown[][] = [];
+    for (const v of rows) {
+      const code = padCode(v.id);
+      if (code.length !== 8) continue;
+      for (const s of Array.isArray(v.avgiftsatser) ? v.avgiftsatser : []) for (const t of Array.isArray(s.avgiftstyper) ? s.avgiftstyper : [])
+        for (const g of Array.isArray(t.avgiftsgrupper) ? t.avgiftsgrupper : []) {
+          let rate = decimal(g.sats);
+          if (rate != null && String(g.oresats).toLowerCase() === 'true') rate = String(Number(rate) / 100);
+          const grp = g.avgiftsgruppe != null && g.avgiftsgruppe !== '' ? Number(g.avgiftsgruppe) : null;
+          out.push([code, trimmed(s.landgruppe), upperCode(t.avgiftstype), trimmed(t.avgiftstypebeskrivelse), Number.isFinite(grp) ? grp : null,
+            trimmed(g.avgiftsgruppebeskrivelse), rate, trimmed(g.enhet), trimmed(g.enhetbeskrivelse), dateOrNull(g.fomdato), dateOrNull(g.tomdato)]);
+        }
+    }
+    await bulkInsert(c, 'ref_import_levy', ['code', 'landgruppe', 'levy_type', 'levy_type_text', 'levy_group', 'levy_group_text', 'rate', 'unit', 'unit_text', 'valid_from', 'valid_to'], out);
+    return { rowsSeen: rows.length, rowsWritten: out.length, url };
+  }
+};
+const additionalDuty: Dataset = {
+  id: 'tilleggstoll', label: 'Tilleggstollavgift', source: 'data.toll.no: tilleggstollavgiftssats',
+  count: c => n(c, 'SELECT COUNT(*) n FROM ref_additional_duty'),
+  async load(f, c) {
+    const { data, url } = await f.ckanDataset('tilleggstollavgiftssats');
+    const { rows } = recordsAt(data, '$.varer');
+    if (rows.length) validateMapping(rows, { code: ['id'], agreements: ['avtalesatser'] }, ['code', 'agreements']);
+    await c.query('DELETE FROM ref_additional_duty');
+    const out: unknown[][] = [];
+    for (const v of rows) {
+      const code = padCode(v.id);
+      for (const a of Array.isArray(v.avtalesatser) ? v.avtalesatser : []) {
+        const group = upperCode(a.landgruppe);
+        for (const s of Array.isArray(a.sats) ? a.sats : a.sats ? [a.sats] : []) {
+          const rate = decimal(s.satsVerdi);
+          if (code.length === 8 && group && rate != null) out.push([code, group, rate, trimmed(s.satsEnhet), trimmed(s.satsEnhetBeskrivelse), dateOrNull(s.fomdato), dateOrNull(s.tomdato)]);
+        }
+      }
+    }
+    await bulkInsert(c, 'ref_additional_duty', ['code', 'landgruppe', 'rate', 'unit', 'unit_text', 'valid_from', 'valid_to'], out);
+    return { rowsSeen: rows.length, rowsWritten: out.length, url };
+  }
+};
+
 export const DATASETS: Dataset[] = [
   tariff,
   rates('tollsatser', 'tollavgiftssats', 'TL1', 'Tollsatser (TL1)'),
   rates('rt100-satser', 'raavaretollavgiftssats', 'RT100', 'Råvaretollavgift (RT100)'),
   groups, restrictions, errors, fx, postal,
-  offices, procedures, importRefs, quotas, codeValidity
+  offices, procedures, importRefs, quotas, codeValidity, levies, additionalDuty
 ];
 export const datasetById = (id: string) => DATASETS.find(d => d.id === id);
 export { normCode };

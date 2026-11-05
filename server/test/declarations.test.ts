@@ -20,6 +20,10 @@ beforeAll(async () => {
   await pool.query(`INSERT INTO currency (code, name) VALUES ('EUR', 'Euro'), ('USD', 'Dollar')`);
   await pool.query(`INSERT INTO fx_rate (currency, valid_from, rate, quoted) VALUES ('EUR', '2020-01-01', 11.6, 11.6)`);
   await pool.query(`INSERT INTO restriction (code, landgruppe, restriction_code, document_code) VALUES ('04032040', 'RALL', 'V5', 'CHED')`);
+  // Duty free with VAT data, so the calculation (phase 2b) adds no findings to the 2a rules tested here.
+  await pool.query(`INSERT INTO tariff_rate (code, landgruppe, duty_code, rate_value, rate_unit, valid_from)
+    SELECT c, 'TALL', 'TL1', 0, 'PERCENT', '2020-01-01' FROM unnest(ARRAY['21039099', '64039900', '04032040', '21030000', '09109900']) c`);
+  await pool.query(`INSERT INTO ref_import_levy (code, levy_type, levy_group, rate, unit) VALUES ('21039099', 'MV', 2, 15, 'P')`);
 });
 afterAll(() => pool.end());
 
