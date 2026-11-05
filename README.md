@@ -15,7 +15,7 @@ Requirements and design: the OdinAi requirements document (Claude Docs). Built o
 | 1 | Business partners, products, RT permits, data from ODIN LINK | Done (move: `npm run import:odinlink -w server`, dry run unless `-- --commit`) |
 | 2 | AI import declarations, review, approval, TVINN simulator | Done: declaration, calculation (checked against two accepted Proteria declarations), AI intake, four-eyes approval, TVINN simulator and send queue. Left for later: release e-mail to the client (needs SMTP) and the real AI trial |
 | 3 | Export and Digitoll | Done: export declarations, Digitoll road (transport, master, house) on the simulator |
-| 4 | Invoicing (prices per client, KID, bank API, Fiken) | |
+| 4 | Invoicing (prices per client, KID, bank API, Fiken) | 4a done: invoice basis, drafts, issuing with number series and KID, credit notes, PDF. Next: 4b payments from the bank, 4c EHF and Fiken |
 | 5 | Online, Tolletaten test period, go-live | |
 
 ## Run it on this PC
@@ -45,6 +45,20 @@ org. no. / EORI / name, products by GTIN and article numbers); what the AI read 
 becomes a review point to clear. Every goods item keeps the source of its values. A client marked
 «Reservert mot AI-behandling» on the partner card is never sent. Needs `ANTHROPIC_API_KEY` in `.env`
 (optional `AI_MODEL`, default `claude-opus-5-5`, and `AI_EFFORT`, default `high`).
+
+## Invoicing
+
+Fakturering › Til fakturering lists every declaration accepted by Tolletaten that is not on a live invoice,
+per client, with the proposed lines (`server/src/invoicing`). Prices come from the partner card (the agreed
+price on the declaration date), else the price list (Fakturering › Innstillinger). Duty and levies are
+recharged as outlays only when Odin paid them (box 48: Odin's own credit account, dagsoppgjør or cash);
+import VAT is never recharged. A missing price or an unknown payer is a warning, never a guess.
+
+A draft has no number and can be edited. Issuing takes the next number from one unbroken series (shared with
+credit notes), sets the KID (client number + invoice number + MOD10), the due date and the PDF, and freezes the
+invoice — the database refuses changes and deletes. A credit note credits whole lines; when every line is
+credited, the declarations go back to the basis. Fill in the company details and account number under
+Fakturering › Innstillinger before the first invoice is issued.
 
 ## Reference data
 

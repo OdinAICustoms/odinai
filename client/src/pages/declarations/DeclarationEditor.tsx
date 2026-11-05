@@ -90,6 +90,7 @@ export function DeclarationEditor({ me }: { me: Me }) {
         {me.perms.includes('declaration.edit') && <button className="btn grey" type="button" onClick={async () => { const r = await act(() => api(`/declarations/${id}/copy`, { body: {} })); if (r?.id) nav(`/${exp ? 'exports' : 'declarations'}/${r.id}`); }}>{T('Kopier')}</button>}
         {!exp && d.digitoll && <button className="btn grey" type="button" onClick={() => nav(`/digitoll/houses/${d.digitoll.id}`)}>Digitoll · {T(({ DRAFT: 'Utkast', ACCEPTED: 'Akseptert', INCOMPLETE: 'Ufullstendig', REJECTED: 'Avvist' } as Record<string, string>)[d.digitoll.status] ?? d.digitoll.status)}</button>}
         {!exp && !d.digitoll && me.perms.includes('declaration.edit') && d.status !== 'CANCELLED' && <button className="btn grey" type="button" onClick={async () => { setErr(''); try { const r = await api(`/digitoll/houses/from-declaration/${id}`, { body: {} }); nav(`/digitoll/houses/${r.id}`); } catch (x) { setErr((x as Error).message); } }}>{T('Lag Digitoll-forsendelse')}</button>}
+        {d.invoice && me.perms.includes('invoice.read') && <button className="btn grey" type="button" onClick={() => nav(`/invoices/${d.invoice.id}`)}>{d.invoice.invoice_no ? `${T('Faktura')} ${d.invoice.invoice_no}` : T('Fakturautkast')}</button>}
         <button className="btn grey" type="button" onClick={() => nav(exp ? '/exports' : '/declarations')}>← {T('Deklarasjoner')}</button>
       </div>
       {d.status === 'CANCELLED' && <div className="warnmsg">{T('Kansellert')}: {d.cancel_reason}</div>}

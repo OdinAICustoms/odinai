@@ -83,5 +83,6 @@ productRoutes.get('/documents/:id', async (req, res, next) => {
 productRoutes.post('/documents/:id/remove', edit, handle(async req => {
   const d = await one('SELECT owner_type FROM document WHERE id = $1', [req.params.id]);
   if (!d) fail(404, 'Fant ikke dokumentet.');
+  if (d.owner_type === 'INVOICE') fail(409, 'Fakturaens PDF er en del av den utstedte fakturaen og kan ikke fjernes.', 'INVOICE_DOCUMENT');
   return docs.remove(req, req.params.id);
 }));

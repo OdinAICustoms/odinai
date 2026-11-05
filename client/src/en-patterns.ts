@@ -138,5 +138,18 @@ export const EN_PATTERNS: [RegExp, (m: RegExpMatchArray, t: Tr) => string][] = [
   [/^(.+): må være et helt tall\.$/, m => `${m[1].replace('Rubrikk', 'Box')}: must be a whole number.`],
   [/^(.+): ugyldig dato\.$/, m => `${m[1].replace('Rubrikk', 'Box')}: invalid date.`],
   [/^Deklarasjonen har status (\w+) og kan ikke endres\.$/, m => `The declaration has status ${m[1]} and cannot be changed.`],
-  [/^(Klienten|Avsenderen|Mottakeren|Deklaranten) finnes ikke i Forretningspartner\.$/, m => `The ${{ Klienten: 'client', Avsenderen: 'consignor', Mottakeren: 'consignee', Deklaranten: 'declarant' }[m[1]]} is not in Business partners.`]
+  [/^(Klienten|Avsenderen|Mottakeren|Deklaranten) finnes ikke i Forretningspartner\.$/, m => `The ${{ Klienten: 'client', Avsenderen: 'consignor', Mottakeren: 'consignee', Deklaranten: 'declarant' }[m[1]]} is not in Business partners.`],
+  /* Invoicing (server/src/invoicing/service.ts and pricing.ts) */
+  [/^Nummerserien kan bare flyttes fremover \(neste nummer er (\d+)\)\.$/, m => `The number series can only move forward (the next number is ${m[1]}).`],
+  [/^(\S+) er ikke godtatt av Tolletaten og kan ikke faktureres ennå\.$/, m => `${m[1]} has not been accepted by Norwegian Customs and cannot be invoiced yet.`],
+  [/^(\S+) tilhører en annen klient\.$/, m => `${m[1]} belongs to another client.`],
+  [/^(.+) er allerede på en faktura\.$/, m => `${m[1]} is already on an invoice.`],
+  [/^Fyll ut firmaopplysningene under Fakturering › Innstillinger før du utsteder: (.+)\.$/, (m, t) => `Fill in the company details under Invoicing › Settings before you issue: ${m[1].split(', ').map(t).join(', ')}.`],
+  [/^Firmaopplysninger mangler før fakturaen kan utstedes: (.+)\.$/, (m, t) => `Company details are missing before the invoice can be issued: ${m[1].split(', ').map(t).join(', ')}.`],
+  [/^«(.+)»: prisen er endret fra (.+) til (.+) kr\.$/s, m => `"${m[1]}": the price has been changed from ${m[2]} to ${m[3]} kr.`],
+  [/^(\S+): ingen pris for «(.+)» — verken avtalt pris på partnerkortet eller listepris\. Linjen er utelatt\.$/, (m, t) => `${m[1]}: no price for "${t(m[2])}" — neither an agreed price on the partner card nor a list price. The line is left out.`],
+  [/^(\S+): konto (.+) i rubrikk 48 er ikke registrert på Odin eller klienten\. Toll og avgifter \((.+) kr\) er ikke tatt med som utlegg — kontroller hvem som betalte\.$/,
+    m => `${m[1]}: account ${m[2]} in box 48 is not registered to Odin or the client. Duty and levies (${m[3]} kr) are not included as outlays — check who paid.`],
+  [/^(\S+): klienten er ikke registrert i Merverdiavgiftsregisteret, så Tolletaten kan ha belastet importmerverdiavgift \((.+) kr\) på Odins konto\. Den er ikke tatt med — legg den til som utlegg hvis den er betalt\.$/,
+    m => `${m[1]}: the client is not in the VAT Register, so Norwegian Customs may have charged import VAT (${m[2]} kr) to Odin's account. It is not included — add it as an outlay if it was paid.`]
 ];

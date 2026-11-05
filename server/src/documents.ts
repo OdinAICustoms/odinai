@@ -17,7 +17,7 @@ const ALLOWED = (process.env.ALLOWED_MIME || [
   'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword'].join(',')).split(',').map(s => s.trim());
 
-export type OwnerType = 'PRODUCT' | 'RT_PERMIT' | 'PARTNER' | 'DECLARATION';
+export type OwnerType = 'PRODUCT' | 'RT_PERMIT' | 'PARTNER' | 'DECLARATION' | 'INVOICE';
 const PUBLIC_COLS = 'id, owner_type, owner_id, doc_code, filename, mime, size_bytes, sha256, uploaded_at, uploaded_by';
 
 export async function store(req: Request, owner: { type: OwnerType; id: string }, b: { filename?: string; mime?: string; contentBase64?: string; docCode?: string }) {

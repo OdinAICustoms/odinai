@@ -5,7 +5,7 @@ import { T, getLang, setLang, type Lang } from './i18n';
 import { Logo } from './components/Logo';
 import { Login } from './pages/Login';
 import { ChangePassword } from './pages/ChangePassword';
-import { Upcoming } from './pages/Upcoming';
+import { InvoicingBasis, InvoiceList, InvoiceCard, InvoiceSettings } from './pages/invoicing/Invoicing';
 import { Users } from './pages/admin/Users';
 import { Audit } from './pages/admin/Audit';
 import { Settings } from './pages/admin/Settings';
@@ -25,7 +25,7 @@ const MODULES = [
   { path: '/digitoll', label: 'Digitoll', icon: 'truck', sub: [] as [string, string][] },
   { path: '/partners', label: 'Forretningspartnere', icon: 'org', sub: [] },
   { path: '/products', label: 'Produkter', icon: 'box', sub: [['/products', 'Produktregister'], ['/rt-permits', 'RT-tillatelser']] as [string, string][], also: ['/rt-permits'] },
-  { path: '/invoicing', label: 'Fakturering', icon: 'bill', phase: 4, sub: [] },
+  { path: '/invoicing', label: 'Fakturering', icon: 'bill', perm: 'invoice.read', sub: [['/invoicing', 'Til fakturering'], ['/invoices', 'Fakturaer'], ['/invoice-settings', 'Innstillinger']] as [string, string][], also: ['/invoices', '/invoice-settings'] },
   { path: '/admin', label: 'Administrasjon', icon: 'lock', perm: 'users.manage', sub: [['/admin/users', 'Brukere'], ['/admin/refdata', 'Referansedata'], ['/admin/audit', 'Endringslogg'], ['/admin/settings', 'Innstillinger']] as [string, string][] }
 ];
 
@@ -101,7 +101,10 @@ function Shell({ me, onLang, onSignOut }: { me: Me; onLang: (l: Lang) => void; o
             <Route path="/exports/:id" element={<DeclarationEditor me={me} />} />
             <Route path="/digitoll" element={<DigitollOverview me={me} />} />
             <Route path="/digitoll/:kind/:id" element={<DigitollCard me={me} />} />
-            {MODULES.filter(m => m.phase).map(m => <Route key={m.path} path={m.path + '/*'} element={<Upcoming title={m.label} phase={m.phase!} />} />)}
+            <Route path="/invoicing" element={<InvoicingBasis me={me} />} />
+            <Route path="/invoices" element={<InvoiceList me={me} />} />
+            <Route path="/invoices/:id" element={<InvoiceCard me={me} />} />
+            <Route path="/invoice-settings" element={<InvoiceSettings me={me} />} />
             <Route path="/partners" element={<PartnerList me={me} />} />
             <Route path="/partners/:id" element={<PartnerCard me={me} />} />
             <Route path="/products" element={<ProductList me={me} />} />

@@ -34,7 +34,7 @@ export async function submit(req: Request, id: string, version?: unknown) {
   if (open) fail(409, `${open} kontrollpunkt${open === 1 ? '' : 'er'} fra AI-lesingen må avklares før innsending.`, 'REVIEWS_OPEN');
   const { calc, issues, items, parties, documents } = card;
   const header = Object.fromEntries(Object.entries(card).filter(([k]) => !['calc', 'issues', 'items', 'parties', 'documents', 'reviews', 'intakes', 'ai', 'check',
-    'versions', 'comments', 'queue', 'editable', 'workflow'].includes(k)));
+    'versions', 'comments', 'queue', 'editable', 'workflow', 'digitoll', 'invoice'].includes(k)));
   const versionNo = d.current_version + 1;
   await tx(async c => {
     await c.query(`INSERT INTO declaration_version (declaration_id, version_no, snapshot, submitted_by) VALUES ($1, $2, $3, $4)`,
